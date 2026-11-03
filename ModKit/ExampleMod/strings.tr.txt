@@ -1,0 +1,3 @@
+# Basit metin dosyası: her satır "anahtar = metin". # ile başlayan satırlar yorumdur, \n satır sonudur.
+# Dosya adı dili belirler: strings.tr.txt, strings.en.txt, strings.es.txt, strings.zh.txt, strings.hi.txt, strings.ar.txt
+menu.subtitle = BÜYÜK DONMA'DAN 20 YIL SONRA - MODLU

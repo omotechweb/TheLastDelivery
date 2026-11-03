@@ -1,0 +1,60 @@
+// The Last Delivery - örnek mod. Bu klasörü şuraya kopyalayın:
+//   %LocalAppData%\TheLastDelivery\Mods\ExampleMod\
+// JSON içinde // yorumları ve sondaki virgüller serbesttir.
+{
+  "id": "example",
+  "name": "Örnek Mod",
+  "author": "Mod Yapımcısı",
+  "version": "1.0",
+  "description": "Yeni bir tren rengi, bir istasyon diyaloğu ve bir benzinlik ekler.",
+
+  // Yeni tren renkleri: verilmeyen renkler klasik skinden alınır. style: None, Icebreaker, Bandit,
+  // Royal, WolfHunter, Miner, Aurora, GoldPlated, Military
+  "skins": [
+    {
+      "id": "copper",
+      "price": 150,
+      "name": { "tr": "Bakır Ekspres", "en": "Copper Express", "es": "Expreso de Cobre" },
+      "style": "Royal",
+      "colors": {
+        "wagonBody": "#6E3C24", "wagonPlank": "#4E2A18", "iron": "#30282A",
+        "boiler": "#B4643A", "boilerBand": "#7A3E20", "cabBody": "#8A4A2C",
+        "roof": "#2A2020", "shine": "#FFC898", "trim": "#E8A060"
+      }
+    }
+  ],
+
+  // Peronda bekleyen yabancıyla yeni diyaloglar. Metinde {0} yabancının adı, {1} mesleğidir.
+  // takeStranger: bu seçenek yabancıyı trene alır. karma: gizli ahlak puanı (-50..50).
+  "dialogs": [
+    {
+      "id": "lostdog",
+      "title": { "tr": "PERONDA BİR KÖPEK", "en": "A DOG ON THE PLATFORM" },
+      "text": {
+        "tr": "{0} karların içinde titreyen bir köpeği kucaklamış bekliyor. \"İkimizi de alır mısın?\"",
+        "en": "{0} waits in the snow, holding a shivering dog. \"Will you take us both?\""
+      },
+      "a": {
+        "label": { "tr": "İkisini de trene al.", "en": "Take them both aboard." },
+        "outcome": { "tr": "Köpek kabinin köşesine kıvrıldı. Herkes biraz daha az üşüyor gibi.", "en": "The dog curled up in a corner of the cabin. Everyone seems a little less cold." },
+        "takeStranger": true, "karma": 10, "sanity": 15
+      },
+      "b": {
+        "label": { "tr": "Yalnızca yakıtı al.", "en": "Take only the fuel." },
+        "outcome": { "tr": "Köpeğin uluması, tren uzaklaşırken de duyuldu.", "en": "The dog's howl could still be heard as the train pulled away." },
+        "fuel": 15, "karma": -10, "sanity": -10
+      }
+    }
+  ],
+
+  // Hikâye hattına ek duraklar: "depot" (benzinlik) ya da "station" (yabancılı istasyon).
+  // Var olan bir durağa 6 km'den yakın ya da hattın dışındaki duraklar atlanır.
+  "stops": [
+    { "km": 1320, "kind": "depot" }
+  ],
+
+  // Oyunun herhangi bir metnini değiştirin ya da yeni dil ekleyin: dil kodu → (anahtar → metin)
+  "strings": {
+    "en": { "menu.subtitle": "20 YEARS AFTER THE GREAT FREEZE - MODDED" }
+  }
+}

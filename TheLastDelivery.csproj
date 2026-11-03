@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <TieredCompilation>false</TieredCompilation>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>TheLastDelivery</RootNamespace>
+    <AssemblyName>TheLastDelivery</AssemblyName>
+    <!-- Exe simgesi (Gezgin, görev çubuğu, kısayollar) -->
+    <ApplicationIcon>TheLastDelivery.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Oyun penceresinin simgesi: MonoGame DesktopGL gömülü "Icon.bmp" kaynağını yükler -->
+    <EmbeddedResource Include="Icon.bmp" LogicalName="Icon.bmp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Hiç Content (.mgcb) dosyası yok: tüm grafikler kod içinde üretiliyor. -->
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.*" />
+    <!-- Çince, Hintçe ve Arapça metinleri Windows sistem fontlarıyla çizmek için (yalnızca Windows'ta kullanılır) -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mod kiti (örnek mod ve açıklama) oyunla birlikte dağıtılır; oyun klasöründeki Mods/ ayrıca taranır -->
+    <None Include="ModKit\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

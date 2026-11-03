@@ -1,0 +1,12 @@
+# Derleme çıktıları
+bin/
+obj/
+publish/
+installer/Output/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
