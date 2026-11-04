@@ -136,16 +136,6 @@ public sealed partial class MetaMenu
         if (_cursor != before) { _hardcoreConfirm = false; audio.PlayClick(); }
 
         var dlc = DLCManager.All[_cursor];
-#if DEBUG
-        // Geliştirici testi: çevrimdışı platformda sahipliği simüle et (sürüm derlemesinde yok)
-        if (input.Pressed(Keys.F9))
-        {
-            DLCManager.ToggleSimulated(dlc.Id);
-            Show(Loc.F(DLCManager.Owns(dlc.Id) ? "dlc.devOn" : "dlc.devOff", dlc.Name), Hud.Amber);
-            audio.PlayClick();
-            return MetaAction.None;
-        }
-#endif
 
         if (!input.AnyPressed(Keys.Enter, Keys.Space) || _screenTime < 0.15f) return MetaAction.None;
 
@@ -362,9 +352,6 @@ public sealed partial class MetaMenu
 
         // Altta platform durumu (ve Debug derlemesinde geliştirici kısayolu)
         string status = Loc.F("dlc.platform", AchievementManager.Platform.IsOnline ? "Steam" : Loc.T("dlc.offline"));
-#if DEBUG
-        status += "   " + Loc.T("dlc.devHint");
-#endif
         GameText.DrawCentered(sb, status, CenterX, top + DLCManager.All.Length * step + 2, Hud.Label * (0.7f * fade));
     }
 

@@ -687,9 +687,6 @@ public static class StringsZh
         ["dlc.storeOffline"] = "未连接 Steam：商店页面需在 Steam 版本中打开",
         ["dlc.platform"] = "平台：{0}",
         ["dlc.offline"] = "离线（未连接 Steam）",
-        ["dlc.devHint"] = "[F9] 开发者：模拟拥有",
-        ["dlc.devOn"] = "开发者：{0} 已拥有",
-        ["dlc.devOff"] = "开发者：{0} 未拥有",
         ["dlc.supporter.name"] = "支持者礼包",
         ["dlc.supporter.desc"] = "支持游戏开发，获得专属谢礼内容。",
         ["dlc.supporter.contents"] = "镀金机车 - 支持者徽章 - 概念原画 - 原声音乐",
@@ -958,10 +955,6 @@ public static class StringsZh
         ["custom.slot5"] = "宠物",
 
         // 测试代码（发布前移除）
-        ["dev.hint"] = "[TAB] 输入代码",
-        ["dev.ok"] = "测试模式：全部解锁，余额无限",
-        ["dev.wrong"] = "无效代码",
-        ["dev.active"] = "测试模式",
 
         // --- 剧情更新：40 章 ---
         ["chn.1"] = "初雪",

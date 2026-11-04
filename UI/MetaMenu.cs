@@ -44,34 +44,6 @@ public sealed partial class MetaMenu
 
     private int _skinScroll; // Skin listesi 10 satırdan uzun: kaydırılarak gösterilir
 
-    // DENEME KODU (yayından önce kaldır): sağ üstteki kod alanı. [TAB] odaklar, ENTER gönderir.
-    private bool _codeFocused;
-    private string _codeText = "";
-
-    /// <summary>Kod alanı yazı bekliyor mu? (ESC oyundan çıkmak yerine alanı kapatır.)</summary>
-    public bool CodeFocused => _codeFocused && Screen == MetaScreen.Main;
-
-    public void UnfocusCode() => _codeFocused = false;
-
-    /// <summary>Pencereden gelen karakter girişi (Game1, Window.TextInput üzerinden iletir).</summary>
-    public void OnTextInput(char c)
-    {
-        if (!CodeFocused) return;
-        // Ctrl basılıyken gelen harfler kısayoldur (Ctrl+V yapıştırma), yazıya eklenmez
-        var keys = Keyboard.GetState();
-        if (keys.IsKeyDown(Keys.LeftControl) || keys.IsKeyDown(Keys.RightControl)) return;
-        AppendCode(c.ToString());
-    }
-
-    private void AppendCode(string text)
-    {
-        foreach (char c in text)
-        {
-            if (_codeText.Length >= 24) break;
-            if (char.IsLetterOrDigit(c)) _codeText += char.ToLowerInvariant(c);
-        }
-    }
-
     private int _cursor;
     private float _time;
     private float _screenTime;
@@ -90,8 +62,8 @@ public sealed partial class MetaMenu
     private Chapter[] EpisodeChapters => ChosenEpisode == 2 ? Chapters.Episode2 : Chapters.All;
     private int EpisodeUnlocked => ChosenEpisode == 2 ? SaveData.Current.Episode2Unlocked : SaveData.Current.UnlockedChapter;
 
-    /// <summary>Episode 2'ye geçiş: Episode 1 bitmemişse uyarı (deneme kodu açıkken serbest).</summary>
-    private static bool Episode2Available => SaveData.Current.Episode1Complete || SaveData.Current.DevUnlockAll;
+    /// <summary>Episode 2'ye geçiş: Episode 1 bitmemişse uyarı.</summary>
+    private static bool Episode2Available => SaveData.Current.Episode1Complete;
 
     /// <summary>Episode seçim ekranını açar (imleç verilen episode'da).</summary>
     private void OpenEpisodes(int cursor)
@@ -179,36 +151,6 @@ public sealed partial class MetaMenu
             MetaScreen.Shop => UpgradeCatalog.All.Length,
             _ => Cosmetics.ShopSkins.Length + Cosmetics.CabinThemes.Length
         };
-
-        // Kod alanı: odaktayken menü gezinmesi durur, tuşlar yazıya gider
-        if (Screen == MetaScreen.Main && input.Pressed(Keys.Tab))
-        {
-            _codeFocused = !_codeFocused;
-            audio.PlayClick();
-            return MetaAction.None;
-        }
-        if (CodeFocused)
-        {
-            if (input.Pressed(Keys.Back) && _codeText.Length > 0) _codeText = _codeText[..^1];
-
-            // Yapıştır: Ctrl+V ya da Shift+Insert
-            bool ctrl = input.Down(Keys.LeftControl) || input.Down(Keys.RightControl);
-            bool shift = input.Down(Keys.LeftShift) || input.Down(Keys.RightShift);
-            if (ctrl && input.Pressed(Keys.V) || shift && input.Pressed(Keys.Insert))
-            {
-                AppendCode(DevCheats.ReadClipboard());
-                audio.PlayClick();
-            }
-            if (input.Pressed(Keys.Enter))
-            {
-                bool ok = DevCheats.TryApply(_codeText);
-                Show(Loc.T(ok ? "dev.ok" : "dev.wrong"), ok ? CabinPanel.Good : Hud.Danger);
-                if (ok) audio.PlaySuccess(); else audio.PlayError();
-                _codeText = "";
-                _codeFocused = false;
-            }
-            return MetaAction.None;
-        }
 
         if (Screen == MetaScreen.Chapters)
             MoveInGrid(input, count, audio);
@@ -441,7 +383,6 @@ public sealed partial class MetaMenu
             GameText.Draw(sb, effect, new Vector2(banner.X + 14, banner.Y + 30), Hud.Label * fade);
         }
 
-        DrawCodeField(sb, fade);
 
         const string title = "THE LAST DELIVERY";
         GameText.DrawCentered(sb, title, CenterX + 4, 50, Color.Black * (0.6f * fade), 7, Language.English);
@@ -516,27 +457,6 @@ public sealed partial class MetaMenu
         }
         GameText.DrawCentered(sb, Loc.F("menu.achievements", save.Achievements.Count, Achievements.All.Length) + "    "
             + Loc.F("menu.endings", save.EndingsSeen.Count, EndingIds.All.Length), CenterX, 586, Hud.Label * (0.8f * fade));
-    }
-
-    /// <summary>DENEME KODU (yayından önce kaldır): sağ üstte, Kredi bakiyesinin altında kod giriş kutusu.</summary>
-    private void DrawCodeField(SpriteBatch sb, float fade)
-    {
-        var box = new Rectangle(GameConfig.ScreenWidth - 264, 60, 240, 30);
-        sb.FillRect(box, Color.Black * (0.6f * fade));
-        sb.DrawBorder(box, _codeFocused ? 2 : 1, (_codeFocused ? Hud.Amber : Hud.PanelEdge) * fade);
-        if (_codeFocused)
-        {
-            string shown = _codeText + (MathF.Sin(_time * 8f) > 0f ? "_" : " ");
-            // Uzun kodun sonu görünsün
-            while (GameText.MeasureLine(shown) > box.Width - 16 && shown.Length > 1) shown = shown[1..];
-            GameText.Draw(sb, shown, new Vector2(box.X + 8, box.Y + 4), Color.White * fade, 2, Language.English);
-        }
-        else
-        {
-            GameText.Draw(sb, Loc.T("dev.hint"), new Vector2(box.X + 8, box.Y + 4), Hud.Label * (0.8f * fade));
-        }
-        if (DevCheats.IsActive)
-            GameText.DrawRight(sb, Loc.T("dev.active"), box.Right, box.Bottom + 4, new Color(255, 215, 110) * fade);
     }
 
     private void DrawHeader(SpriteBatch sb, string title, float fade)

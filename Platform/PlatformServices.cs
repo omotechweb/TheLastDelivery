@@ -76,15 +76,10 @@ public sealed class OfflinePlatform : IPlatformServices
 
     /// <summary>
     /// Steam olmadan DLC sahipliği doğrulanamaz: sürüm (Release) derlemede hiçbir DLC açık değildir.
-    /// Geliştirme (Debug) derlemesinde DLC ekranındaki [F9] ile sahiplik denemek için simüle edilebilir.
     /// </summary>
     public bool TryGetDlcOwnership(uint appId, out bool owned)
     {
-#if DEBUG
-        owned = Economy.SaveData.Current.DevSimulatedDlc.Contains(appId);
-#else
         owned = false;
-#endif
         return true;
     }
 
@@ -94,15 +89,11 @@ public sealed class OfflinePlatform : IPlatformServices
         return false; // Steam kaplaması yok: oyun "Steam'e bağlı değil" bildirimini gösterir
     }
 
-    /// <summary>Steam olmadan ödeme alınamaz. Debug derlemesinde satın alma denemek için onaylanır.</summary>
+    /// <summary>Steam olmadan ödeme alınamaz.</summary>
     public bool TryPurchaseItem(string microId)
     {
         Write($"TryPurchaseItem({microId})");
-#if DEBUG
-        return true;
-#else
         return false;
-#endif
     }
 
     public IReadOnlyList<string> GetWorkshopItemFolders() => Array.Empty<string>();

@@ -107,6 +107,7 @@ public static class CosmeticCatalog
     {
         if (item == null) return false;
         if (item.Dlc != null) return DLCManager.Owns(item.Dlc);
+        if (item.MicroId != null && Platform.DLCManager.AllContentFree) return true; // Ücretli kozmetikler şimdilik ücretsiz
         if (item.IsMicro) return SaveData.Current.OwnedCosmetics.Contains(item.Key);
         return true;
     }

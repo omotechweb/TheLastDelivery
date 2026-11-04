@@ -44,8 +44,6 @@ public sealed class SaveData
     // --- DLC ve kozmetikler ---
     public List<string> OwnedDlc { get; set; } = new();          // Son doğrulanan DLC sahiplikleri ("supporter", ...)
     public List<string> OwnedCosmetics { get; set; } = new();    // DLC'lerden gelen kozmetikler ("smoke.neonBlue", ...)
-    public List<uint> DevSimulatedDlc { get; set; } = new();     // Yalnızca Debug derlemesinde: simüle edilen DLC'ler
-    public bool DevUnlockAll { get; set; }                       // DENEME KODU (yayından önce kaldır): her şey açık, bakiye sınırsız
     public bool ShowSupporterBadge { get; set; } = true;
     public string EquippedSmoke { get; set; } = "classic";
     public string EquippedPainting { get; set; } = "none";
@@ -189,7 +187,6 @@ public sealed class SaveData
         EndlessLeaderboard ??= new();
         OwnedDlc ??= new();
         OwnedCosmetics ??= new();
-        DevSimulatedDlc ??= new();
         EquippedSmoke ??= "classic";
         EquippedPainting ??= "none";
         EquippedRadio ??= "standard";
@@ -224,7 +221,6 @@ public sealed class SaveData
 
     public static bool TrySpend(int amount)
     {
-        if (Current.DevUnlockAll) return true; // DENEME KODU: sınırsız bakiye, harcama düşülmez
         if (Current.Credits < amount) return false;
         Current.Credits -= amount;
         Save();

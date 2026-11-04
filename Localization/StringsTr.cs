@@ -687,9 +687,6 @@ public static class StringsTr
         ["dlc.storeOffline"] = "Steam'e bağlı değil: mağaza sayfası Steam sürümünde açılır",
         ["dlc.platform"] = "Platform: {0}",
         ["dlc.offline"] = "Çevrimdışı (Steam bağlı değil)",
-        ["dlc.devHint"] = "[F9] GELİŞTİRİCİ: SAHİPLİĞİ SİMÜLE ET",
-        ["dlc.devOn"] = "Geliştirici: {0} sahipliği AÇIK",
-        ["dlc.devOff"] = "Geliştirici: {0} sahipliği KAPALI",
         ["dlc.supporter.name"] = "Geliştiriciye Destek Paketi",
         ["dlc.supporter.desc"] = "Oyunun gelişimine destek ol, teşekkür olarak özel içerikler kazan.",
         ["dlc.supporter.contents"] = "Altın Kaplama Lokomotif - Destekçi Rozeti - Konsept Çizimler - Soundtrack",
@@ -957,11 +954,6 @@ public static class StringsTr
 
         ["custom.slot5"] = "EVCİL HAYVAN",
 
-        // DENEME KODU (yayından önce kaldır)
-        ["dev.hint"] = "[TAB] KOD GİR",
-        ["dev.ok"] = "Deneme modu: her şey açıldı, bakiye sınırsız",
-        ["dev.wrong"] = "Geçersiz kod",
-        ["dev.active"] = "DENEME MODU",
 
         // --- Hikâye güncellemesi: 40 bölüm ---
         ["chn.1"] = "İlk Kar",

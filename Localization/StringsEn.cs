@@ -687,9 +687,6 @@ public static class StringsEn
         ["dlc.storeOffline"] = "Not connected to Steam: the store page opens in the Steam version",
         ["dlc.platform"] = "Platform: {0}",
         ["dlc.offline"] = "Offline (Steam not connected)",
-        ["dlc.devHint"] = "[F9] DEVELOPER: SIMULATE OWNERSHIP",
-        ["dlc.devOn"] = "Developer: {0} ownership ON",
-        ["dlc.devOff"] = "Developer: {0} ownership OFF",
         ["dlc.supporter.name"] = "Supporter Pack",
         ["dlc.supporter.desc"] = "Support the game's development and get exclusive extras as thanks.",
         ["dlc.supporter.contents"] = "Gold-Plated Locomotive - Supporter Badge - Concept Art - Soundtrack",
@@ -958,10 +955,6 @@ public static class StringsEn
         ["custom.slot5"] = "PET",
 
         // TEST CODE (remove before release)
-        ["dev.hint"] = "[TAB] ENTER CODE",
-        ["dev.ok"] = "Test mode: everything unlocked, unlimited balance",
-        ["dev.wrong"] = "Invalid code",
-        ["dev.active"] = "TEST MODE",
 
         // --- Story update: 40 chapters ---
         ["chn.1"] = "First Snow",

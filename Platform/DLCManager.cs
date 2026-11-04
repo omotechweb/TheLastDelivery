@@ -40,6 +40,12 @@ public static class DLCManager
         new(DlcId.Episode2, 3_100_005, "episode2"),
     };
 
+    /// <summary>
+    /// Şimdilik bütün ücretli içerik (5 DLC ve mikro ödemeli kozmetikler) herkese ücretsiz. Satışa geri dönmek için
+    /// false yapmak yeterli: sahiplik yeniden platformdan (Steam) okunur.
+    /// </summary>
+    public const bool AllContentFree = true;
+
     private static readonly HashSet<DlcId> Owned = new();
 
     public static DlcInfo Info(DlcId id) => Array.Find(All, d => d.Id == id);
@@ -76,7 +82,7 @@ public static class DLCManager
                 owned = cached.Contains(dlc.Key);     // Platform hatası oyunu durdurmaz
             }
 
-            if (SaveData.Current.DevUnlockAll) owned = true; // DENEME KODU (yayından önce kaldır)
+            if (AllContentFree) owned = true;
             if (owned) Owned.Add(dlc.Id);
             if (owned != cached.Contains(dlc.Key))
             {
@@ -122,24 +128,12 @@ public static class DLCManager
         }
     }
 
-#if DEBUG
-    /// <summary>Geliştirici testi: çevrimdışı platformda bir DLC'nin sahipliğini aç/kapat ([F9]). Sürüm derlemesinde yoktur.</summary>
-    public static void ToggleSimulated(DlcId id)
-    {
-        var simulated = SaveData.Current.DevSimulatedDlc;
-        uint appId = Info(id).AppId;
-        if (!simulated.Remove(appId)) simulated.Add(appId);
-        Refresh();
-        SaveData.Save();
-    }
-#endif
-
     // ------------------------------------------------------------------
     // İçerik yönlendirme: kilitli içerik güvenli varsayılana düşer
     // ------------------------------------------------------------------
 
     /// <summary>Destekçi rozeti: Supporter Pack sahibi ve rozeti gizlememiş.</summary>
-    public static bool ShowSupporterBadge => Owns(DlcId.Supporter) && SaveData.Current.ShowSupporterBadge;
+    public static bool ShowSupporterBadge => !AllContentFree && Owns(DlcId.Supporter) && SaveData.Current.ShowSupporterBadge;
 
     /// <summary>Kuşanılan skin (DLC'si artık yoksa klasik).</summary>
     public static TrainSkin ActiveSkin(string id)

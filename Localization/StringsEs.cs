@@ -687,9 +687,6 @@ public static class StringsEs
         ["dlc.storeOffline"] = "Sin conexión a Steam: la tienda se abre en la versión de Steam",
         ["dlc.platform"] = "Plataforma: {0}",
         ["dlc.offline"] = "Sin conexión (Steam no conectado)",
-        ["dlc.devHint"] = "[F9] DESARROLLADOR: SIMULAR PROPIEDAD",
-        ["dlc.devOn"] = "Desarrollador: propiedad de {0} ACTIVADA",
-        ["dlc.devOff"] = "Desarrollador: propiedad de {0} DESACTIVADA",
         ["dlc.supporter.name"] = "Pack de Apoyo",
         ["dlc.supporter.desc"] = "Apoya el desarrollo del juego y recibe extras exclusivos como agradecimiento.",
         ["dlc.supporter.contents"] = "Locomotora Chapada en Oro - Insignia de Apoyo - Arte Conceptual - Banda Sonora",
@@ -958,10 +955,6 @@ public static class StringsEs
         ["custom.slot5"] = "MASCOTA",
 
         // CÓDIGO DE PRUEBA (quitar antes del lanzamiento)
-        ["dev.hint"] = "[TAB] INTRODUCIR CÓDIGO",
-        ["dev.ok"] = "Modo de prueba: todo desbloqueado, saldo ilimitado",
-        ["dev.wrong"] = "Código no válido",
-        ["dev.active"] = "MODO DE PRUEBA",
 
         // --- Actualización de historia: 40 capítulos ---
         ["chn.1"] = "Primera Nevada",

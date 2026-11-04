@@ -177,7 +177,6 @@ public partial class Game1 : Game, INarrativeHost
         IsFixedTimeStep = false;
         IsMouseVisible = true;
         Window.Title = "The Last Delivery";
-        Window.TextInput += (_, e) => _meta.OnTextInput(e.Character); // DENEME KODU alanı için klavye girişi
     }
 
     // ==================================================================
@@ -850,7 +849,7 @@ public partial class Game1 : Game, INarrativeHost
     /// <summary>Seçenek şu an seçilebilir mi? Kredi, eşya, erzak ve kabinde boş yer kontrolü.</summary>
     public bool CanApply(NarrativeEffect e, Passenger questPassenger)
     {
-        if (e.Credits < 0 && !SaveData.Current.DevUnlockAll && SaveData.Current.Credits < -e.Credits) return false;
+        if (e.Credits < 0 && SaveData.Current.Credits < -e.Credits) return false;
         if (e.ConsumeItem.HasValue && !_inventory.Has(e.ConsumeItem.Value)) return false;
         if (e.Rations < 0 && _inventory.Rations < -e.Rations) return false;
         if (e.RecruitTownPassenger)
@@ -1444,10 +1443,6 @@ public partial class Game1 : Game, INarrativeHost
         {
             _audio.PlayClick();
             ChangeState(GameState.MainMenu);
-        }
-        else if (_state == GameState.MainMenu && _meta.CodeFocused)
-        {
-            _meta.UnfocusCode(); // ESC kod alanını kapatır, oyundan çıkmaz
         }
         else if (_state == GameState.MainMenu && _meta.Back())
         {
@@ -3468,7 +3463,7 @@ public partial class Game1 : Game, INarrativeHost
         }
 
         // Episode 1'in kalıcı ölümü (Freeze Death): Episode 1 henüz bitirilmediyse yolculuk en baştan başlar
-        if (_mode == GameMode.Story && !SaveData.Current.Episode1Complete && !SaveData.Current.DevUnlockAll)
+        if (_mode == GameMode.Story && !SaveData.Current.Episode1Complete)
         {
             SaveData.Current.UnlockedChapter = 1;
             Narrative.ResetForNewStory();
