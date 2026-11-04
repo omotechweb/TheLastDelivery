@@ -31,7 +31,7 @@ namespace TheLastDelivery;
 /// ve çizim sırasını belirler. Asıl iş World/, Passengers/, Items/, Events/, Audio/, UI/
 /// ve Graphics/ altındaki sınıflardadır.
 /// </summary>
-public class Game1 : Game, INarrativeHost
+public partial class Game1 : Game, INarrativeHost
 {
     private static readonly Color NightColor = new(6, 8, 20); // Fırtınalı gece laciverti
     private const float SupplyWagonLeadKm = 5f;                // Yük vagonu ekranın bu kadar önünden gelir
@@ -306,6 +306,7 @@ public class Game1 : Game, INarrativeHost
         _sceneHack = null;
         _sceneHacking = false;
         _gateNextChapter = -1;
+        ResetDeep(); // Güven sonuçları, AURA'nın zihin oyunları, ihbar pususu, iç mekân
 
         // Tam sürüm: mod, ihanet, gece, maden
         SetMode(GameMode.Story);
@@ -372,6 +373,9 @@ public class Game1 : Game, INarrativeHost
             _train.ArmorMultiplier *= GameConfig.PanzerArmorMultiplier;
             _chase.AttackMultiplier *= GameConfig.PanzerArmorMultiplier;
         }
+        // Sasha'nın cevher treni zırhı (Demirhan atölyesi yan görevi): Episode 1 hikâyesinde hasar %20 az
+        if (Narrative.Episode == 1 && Narrative.Has(Flags.ArmorPlated))
+            _train.ArmorMultiplier *= GameConfig.PlatingArmorMultiplier;
         _sentinel.AttackMultiplier = _chase.AttackMultiplier;
 
         // Evcil hayvan ve dönemsel süsler
@@ -678,6 +682,7 @@ public class Game1 : Game, INarrativeHost
         // Telsiz: her bölümde yayınlar yeni frekanslarda; süren bir imdat görevi yoksa yeni bir çağrı yayında
         _radio.Retune((int)_mode * 1000 + CurrentChapter.Number * 13 + _endlessStage, withSos: _sosKm < 0f);
         _chatter.StartChapter();
+        StartChapterDeep(); // Hava cepheleri, telsiz yayınları, AURA'nın zihin oyunları
         _audio.PlayWhistle();
         ChangeState(GameState.ChapterIntro);
     }
@@ -714,10 +719,7 @@ public class Game1 : Game, INarrativeHost
         if (_stateTimer > 1.2f && WasPressed(keys, Keys.Space))
         {
             _audio.PlayClick();
-            if (IsStoryMode && CurrentChapter.IsStoryScene)
-                EnterStoryScene();
-            else
-                ChangeState(GameState.Driving);
+            BeginChapterPlay(); // Önce bölümün hikâye sinematiği (varsa), sonra sürüş ya da sahne
         }
     }
 
@@ -754,6 +756,19 @@ public class Game1 : Game, INarrativeHost
         {
             _ambushIntel = true;
             _toasts.Show(Loc.T("story.intel"), Hud.Amber);
+        }
+
+        // Derin anlatı: B-17'nin hatırladığı devriye çizelgesi ve Kiril'in AURA'ya verdiği sahte rota (birer kez)
+        if (_mode == GameMode.Episode2 && CurrentChapter.IsCritical && !CurrentChapter.IsStoryScene)
+        {
+            foreach (var (flag, used, key) in new[] { ("b17.schedule", "b17.used", "story.b17"), ("e2.falseRoute", "e2.falseRouteUsed", "story.falseRoute") })
+            {
+                if (!Narrative.Has(flag) || Narrative.Has(used)) continue;
+                Narrative.Set(used);
+                _ambushIntel = true;
+                _toasts.Show(Loc.T(key), Hud.Amber);
+                break;
+            }
         }
     }
 
@@ -947,8 +962,9 @@ public class Game1 : Game, INarrativeHost
             _karma += 5;
             lines.Add(Loc.F("sum.passenger", profile.Name, profile.SkillTag));
         }
-        if (e.SetFlag != null || e.SetFlag2 != null)
-            _townScene.RefreshInteractables(); // Yeni açılan noktalar (zula vb.)
+        ApplyDeep(e, questPassenger, lines); // Güven, belgeler, yan görevler, AURA'nın tavrı
+        if (e.SetFlag != null || e.SetFlag2 != null || e.Doc != null || e.StartQuest != null || e.FinishQuest != null || e.Trust != 0)
+            _townScene.RefreshInteractables(); // Yeni açılan noktalar (zula, güvenle açılan kapılar vb.)
         return string.Join("\n", lines);
     }
 
@@ -1000,10 +1016,21 @@ public class Game1 : Game, INarrativeHost
         var beat = StoryBeats.Due(episode, chapter.Number, progress, _cabin.Count);
         if (beat == null) return false;
 
+        // Mahkeme gibi anlarda en şüpheli yolcu sanık sandalyesine oturur ({p} adıyla, güveni ona işler)
+        Passenger accused = null;
+        if (beat.Accused)
+        {
+            accused = MostSuspicious();
+            if (accused == null)
+            {
+                Narrative.MarkSeen(beat.Node);
+                return false;
+            }
+        }
         if (beat.StopTrain) _train.Stop();
         _chatter.Clear();
         _audio.PlayRadioChatter();
-        _story.Open(this, beat.Node, chapter.Name);
+        _story.Open(this, beat.Node, chapter.Name, accused);
         return true;
     }
 
@@ -1012,10 +1039,7 @@ public class Game1 : Game, INarrativeHost
     {
         var (passenger, node) = AvailableQuest();
         if (node == null)
-        {
-            _toasts.Show(Loc.T("quest.none"), Hud.Label);
-            return false;
-        }
+            return TryOpenTalk(); // Görev adımı yoksa yolcuyla serbest sohbet (güven ağı)
         Narrative.AdvanceQuest(passenger.Profile.Id);
         _questNotified = null;
         _story.Open(this, node, passenger.Name, passenger);
@@ -1174,6 +1198,7 @@ public class Game1 : Game, INarrativeHost
         }
 
         _time += dt;
+        _frameDt = dt;
         _stateTimer += dt;
         var input = new InputState(keys, _previousKeys);
 
@@ -1230,11 +1255,43 @@ public class Game1 : Game, INarrativeHost
             return;
         }
 
+        // Hikâye sinematiği (uzun anlatım sahnesi): açıkken oyun zamanı durur
+        if (_cinematic.IsOpen)
+        {
+            _cinematic.Update(dt, input, _audio);
+            UpdateAudio();
+            _previousKeys = keys;
+            base.Update(gameTime);
+            return;
+        }
+
         // Hikâye diyaloğu açıkken oyun zamanı durur
         if (_story.IsOpen)
         {
             _story.Update(dt, input, _audio);
             UpdateAudio();
+            _previousKeys = keys;
+            base.Update(gameTime);
+            return;
+        }
+
+        // Diyalog kapandı: güveni dibe vuran NPC'nin tepkisi (kaçış, bıçaklama, ihbar)
+        if (DialogueTreeManager.HasPending && IsInJourney)
+            ResolveConsequences();
+
+        // Arşiv ([L]): belgeler, kasetler, hatıralar, ilişkiler ve yan görevler; açıkken oyun zamanı durur
+        if (_archive.IsOpen)
+        {
+            _archive.Update(dt, input, _audio);
+            UpdateAudio();
+            _previousKeys = keys;
+            base.Update(gameTime);
+            return;
+        }
+        if (input.Pressed(Keys.L) && CanOpenArchive)
+        {
+            _archive.Open(_mode == GameMode.Episode2 ? 2 : 1);
+            _audio.PlayClick();
             _previousKeys = keys;
             base.Update(gameTime);
             return;
@@ -1305,6 +1362,7 @@ public class Game1 : Game, INarrativeHost
         }
 
         UpdateWorld(dt);
+        UpdateDeep(dt, input); // AURA'nın zihin oyunları, hava cepheleri, ihbar pususu
         _toasts.Update(dt);
         UpdateAudio();
 
@@ -1368,6 +1426,12 @@ public class Game1 : Game, INarrativeHost
         if (_garage.IsOpen)
         {
             _garage.Close();
+            _audio.PlayClick();
+            return;
+        }
+        if (_archive.IsOpen)
+        {
+            _archive.Close();
             _audio.PlayClick();
             return;
         }
@@ -1442,7 +1506,7 @@ public class Game1 : Game, INarrativeHost
             _ => _travelledKm / GameConfig.TotalDistanceKm
         };
         // Fırtına günü (dönemsel etkinlik): fırtına bölümün sınırından daha sert eser
-        _weather.Update(dt, progress, inRun ? MathF.Min(1f, CurrentChapter.MaxStorm + SeasonalEvents.ExtraStorm) : 1f);
+        _weather.Update(dt, progress, inRun ? MathF.Min(1f, CurrentChapter.MaxStorm + SeasonalEvents.ExtraStorm) : 1f, IsTravelling);
         if (IsTravelling) _dayCycle.Update(dt);
         else _chatter.Clear(); // Durakta, kovalamacada ya da kasabada yarım kalan satır silinir
         _wolfSmokeFlash = MathF.Max(0f, _wolfSmokeFlash - dt * 2f);
@@ -1575,6 +1639,12 @@ public class Game1 : Game, INarrativeHost
                 _mafiaDeal = true;
                 _karma -= 40;
                 _toasts.Show(Loc.T("radio.dealMade"), Hud.Danger);
+                break;
+
+            case RadioAction.BroadcastHeard:
+            case RadioAction.AnswerPhantom:
+            case RadioAction.PhantomDrain:
+                HandleRadioDeep(action);
                 break;
 
             case RadioAction.AnswerSos:
@@ -2461,6 +2531,16 @@ public class Game1 : Game, INarrativeHost
                 OpenSpot(target.SpotId);
                 break;
 
+            case InteractableKind.Door:
+                _audio.PlayClick();
+                FadeTo(() => _townScene.EnterInterior(target)); // Binaya kararan geçişle girilir
+                break;
+
+            case InteractableKind.Exit:
+                _audio.PlayClick();
+                FadeTo(_townScene.ExitInterior);
+                break;
+
             case InteractableKind.Tavern:
                 OpenTavern();
                 break;
@@ -3072,6 +3152,7 @@ public class Game1 : Game, INarrativeHost
         if (result == HackResult.Success)
         {
             Narrative.Set(hack.HackFlag);
+            _townScene.RefreshInteractables(); // Kulenin zirvesi gibi bayrağa bağlı noktalar açılsın
             _audio.PlaySuccess();
             _story.Open(this, hack.HackSuccess, CurrentTown?.Name ?? "");
         }
@@ -3309,9 +3390,11 @@ public class Game1 : Game, INarrativeHost
         // Episode 1 bitti: karma, hayatta kalan yolcular ve kararlar Episode 2'ye aktarılır
         if (_mode is GameMode.Story or GameMode.Hardcore)
         {
-            var carry = new EpisodeCarry { Karma = _karma, Ending = id };
+            var carry = new EpisodeCarry { Karma = _karma, Ending = id, AuraStance = SaveData.Current.Story.AuraStance };
             foreach (var p in _cabin.Passengers) carry.Survivors.Add(p.Profile.Id);
             carry.Flags.AddRange(SaveData.Current.Story.Flags.Keys);
+            foreach (var pair in SaveData.Current.Story.Trust) carry.Trust[pair.Key] = pair.Value;
+            carry.Documents.AddRange(SaveData.Current.Story.Documents);
             SaveData.Record(s => { s.Carry = carry; s.Episode1Complete = true; });
         }
         SaveData.Record(s => { if (!s.EndingsSeen.Contains(id)) s.EndingsSeen.Add(id); });
@@ -4099,6 +4182,16 @@ public class Game1 : Game, INarrativeHost
     /// </summary>
     private void DrawTownScene()
     {
+        if (_townScene.IsInterior)
+        {
+            // İç mekân: gökyüzü ve kar yok; oda bütün ekranı kaplar
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp,
+                transformMatrix: Matrix.CreateTranslation(-MathF.Round(_townScene.CameraX), 0f, 0f));
+            _townScene.DrawWorld(_spriteBatch, _train);
+            _spriteBatch.End();
+            return;
+        }
+
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         DrawBackdrop();
         _spriteBatch.End();
@@ -4367,6 +4460,7 @@ public class Game1 : Game, INarrativeHost
 
             case GameState.Driving:
             case GameState.Arriving:
+                DrawFog(); // Sis cephesi: sahnenin üstünde, arayüzün altında
                 Hud.Draw(_spriteBatch, CurrentChapter.HudTitle, _train, RemainingKm, NextStopKm - _travelledKm, NextStopIsShelter, _time, _sanity.Sanity);
                 CabinPanel.Draw(_spriteBatch, _train, _cabin, _time, _inventory.Rations);
                 InventoryPanel.Draw(_spriteBatch, _inventory);
@@ -4377,6 +4471,7 @@ public class Game1 : Game, INarrativeHost
                 DrawModePanel();
                 if (_state == GameState.Arriving)
                     Hud.DrawBanner(_spriteBatch, ArrivalBanner(), _time, _stateTimer);
+                DrawMiniMap();
                 _chatter.Draw(_spriteBatch, _time);
                 _toasts.Draw(_spriteBatch);
                 break;
@@ -4497,6 +4592,14 @@ public class Game1 : Game, INarrativeHost
         }
         if (_garage.IsOpen)
             _garage.Draw(_spriteBatch);
+
+        // Arşiv (L): her şeyin üstünde
+        if (_archive.IsOpen)
+            _archive.Draw(_spriteBatch);
+
+        // Hikâye sinematiği: bütün ekranı kaplar
+        if (_cinematic.IsOpen)
+            _cinematic.Draw(_spriteBatch);
     }
 
     /// <summary>Fotoğraf modu: ilk karede arayüzsüz sahne yakalanır; sonra filtreli, yakınlaştırılmış görüntü çizilir.</summary>

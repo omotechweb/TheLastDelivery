@@ -66,6 +66,16 @@ public sealed record NarrativeEffect
     public string HackSuccess { get; init; }        // Diyalog kapanınca AURA hack'i açılır; başarıda bu düğüm gelir
     public string HackFlag { get; init; }           // Hack başarılıysa konan bayrak
     public string HackRetry { get; init; }          // Hack başarısızsa yeniden açılan düğüm
+
+    // ---- Derin anlatı: güven ağları, belgeler, yan görevler, AURA'nın tavrı ----
+    public int Trust { get; init; }                 // Konuşulan NPC'nin Arthur'a güveni (+) ya da şüphesi (-)
+    public string Npc { get; init; }                // Güvenin uygulanacağı NPC (yoksa düğümün konuşanı)
+    public string Doc { get; init; }                // Arşive eklenen belge/kaset/hatıra (LoreArchive)
+    public string StartQuest { get; init; }         // Açılan yan görev (SideQuests)
+    public string FinishQuest { get; init; }        // Tamamlanan yan görev
+    public string FailQuest { get; init; }          // Kaybedilen yan görev
+    public int Aura { get; init; }                  // AURA'nın Arthur'a tavrı (+ saygı, - düşmanlık); Episode 2'ye taşınır
+    public string Consequence { get; init; }        // Hemen tetiklenen sonuç: "flee", "stab", "report" (NPC için)
 }
 
 /// <summary>Düğümdeki bir seçenek. Etiket: "nv.{düğüm}.o{sıra}".</summary>
@@ -87,6 +97,7 @@ public sealed record NarrativeNode(string Id, string SpeakerKey, PortraitKind Po
     public string Next { get; init; }
     public NarrativeEffect OnEnter { get; init; }     // Düğüm açıldığında bir kez uygulanır
     public string Title { get; init; }                 // Pencere başlığı anahtarı (yoksa konuşanın adı)
+    public string Npc { get; init; }                   // Güven barı gösterilen NPC (yoksa konuşandan türetilir)
     public string Text => Loc.T($"nv.{Id}");
     public string OptionLabel(int index) => Loc.T(Options[index].LabelKey ?? $"nv.{Id}.o{index + 1}");
 }
@@ -111,6 +122,29 @@ public sealed class StoryState
     public List<string> Seen { get; set; } = new();
     public Dictionary<string, int> Quests { get; set; } = new();   // Yolcu kimliği → tamamlanan adım sayısı
     public List<string> Lore { get; set; } = new();                // Açığa çıkan sırlar (günlük için)
+
+    // ---- Derin anlatı ----
+    public Dictionary<string, int> Trust { get; set; } = new();      // NPC kimliği → Arthur'a güveni (0-100)
+    public List<string> Documents { get; set; } = new();             // Bu hikâyede bulunan belgeler, kasetler, hatıralar
+    public List<string> Choices { get; set; } = new();               // Diyalog seçim günlüğü ("düğüm#seçenek")
+    public Dictionary<string, int> SideQuests { get; set; } = new(); // Yan görev → 1 açık, 2 bitti, 3 kaybedildi
+    public int AuraStance { get; set; }                              // AURA'nın tavrı (-100 düşman, +100 saygı)
+    public List<string> Consequences { get; set; } = new();          // Gerçekleşen sonuçlar ("flee:kiril"), tekrar etmez
+
+    /// <summary>Eski kayıtlardan gelen boş alanları doldurur.</summary>
+    public void Sanitize()
+    {
+        Flags ??= new();
+        Seen ??= new();
+        Quests ??= new();
+        Lore ??= new();
+        Trust ??= new();
+        Documents ??= new();
+        Choices ??= new();
+        SideQuests ??= new();
+        Consequences ??= new();
+        AuraStance = Math.Clamp(AuraStance, -100, 100);
+    }
 }
 
 /// <summary>
@@ -123,6 +157,9 @@ public sealed class EpisodeCarry
     public List<string> Survivors { get; set; } = new();   // Yolcu kimlikleri ("viktor", "nadia"...)
     public List<string> Flags { get; set; } = new();       // Episode 1 hikâye bayrakları
     public string Ending { get; set; }                     // "hero", "thaw"...
+    public Dictionary<string, int> Trust { get; set; } = new(); // Yolcuların ve liderlerin Arthur'a güveni
+    public List<string> Documents { get; set; } = new();        // Episode 1'de bulunan belgeler (AURA bunları bilir)
+    public int AuraStance { get; set; }                         // Episode 1'in son bölümlerinde AURA'nın oluşan tavrı
 }
 
 /// <summary>
@@ -134,6 +171,9 @@ public static class Narrative
 {
     private static int _episode = 1;
     private static StoryState State => _episode == 2 ? SaveData.Current.Story2 : SaveData.Current.Story;
+
+    /// <summary>Etkin bölümün hikâye durumu (güven, belgeler, yan görevler).</summary>
+    public static StoryState Current => State;
     private static HashSet<string> _seen;
 
     /// <summary>Etkin bölüm (1 ya da 2). Game1 koşu başlarken ayarlar.</summary>
@@ -178,6 +218,11 @@ public static class Narrative
             return CountFlags(flag[6..colon]) >= needed;
         }
         if (flag.StartsWith("aboard:")) return AboardCheck?.Invoke(flag[7..]) == true;
+        if (flag.StartsWith("trust:")) return DialogueTreeManager.Check(flag[6..]);
+        if (flag.StartsWith("doc:")) return LoreArchive.Has(flag[4..]);
+        if (flag.StartsWith("sq:")) return SideQuests.State(flag[3..]) == SideQuests.Active;
+        if (flag.StartsWith("sqdone:")) return SideQuests.State(flag[7..]) == SideQuests.Done;
+        if (flag.StartsWith("stance:")) return DialogueTreeManager.CheckStance(flag[7..]);
         if (flag.StartsWith("seen:")) return Seen(flag[5..]);
         if (flag.StartsWith("ep1:"))
             return SaveData.Current.Carry?.Flags.Contains(flag[4..]) == true;

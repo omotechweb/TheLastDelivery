@@ -15,6 +15,9 @@ public sealed record StoryBeat(int Chapter, float At, string Node, bool StopTrai
 {
     public string RequireFlag { get; init; }
     public int MinPassengers { get; init; }
+
+    /// <summary>Mahkeme anı: en şüpheli yolcu sanık olur (yoksa an atlanır).</summary>
+    public bool Accused { get; init; }
 }
 
 public static class StoryBeats
@@ -53,10 +56,25 @@ public static class StoryBeats
         new(39, 0.30f, "e2b.door.1"),
     };
 
+    /// <summary>Bölümün bütün anları: özgün anlar ve derin anlatı anları (hatıralar, dönüm noktaları, AURA'nın sorguları).</summary>
+    private static System.Collections.Generic.IEnumerable<StoryBeat> Enumerate(int episode)
+    {
+        foreach (var beat in episode == 2 ? Episode2 : Episode1) yield return beat;
+        foreach (var beat in episode == 2 ? DeepBeats.Episode2 : DeepBeats.Episode1) yield return beat;
+    }
+
+    /// <summary>Bölümde henüz yaşanmamış anların konumları (mini haritada "!" işareti için).</summary>
+    public static System.Collections.Generic.IEnumerable<float> Upcoming(int episode, int chapter)
+    {
+        foreach (var beat in Enumerate(episode))
+            if (beat.Chapter == chapter && !Narrative.Seen(beat.Node) && (beat.RequireFlag == null || Narrative.Has(beat.RequireFlag)))
+                yield return beat.At;
+    }
+
     /// <summary>Şu an açılması gereken an (yoksa null).</summary>
     public static StoryBeat Due(int episode, int chapter, float progress, int passengers)
     {
-        foreach (var beat in episode == 2 ? Episode2 : Episode1)
+        foreach (var beat in Enumerate(episode))
         {
             if (beat.Chapter != chapter || progress < beat.At) continue;
             if (Narrative.Seen(beat.Node)) continue;

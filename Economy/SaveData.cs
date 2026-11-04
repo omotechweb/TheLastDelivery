@@ -86,6 +86,11 @@ public sealed class SaveData
     public TheLastDelivery.Story.StoryState Story2 { get; set; } = new(); // Episode 2 seçimleri (ayrı tutulur)
     public TheLastDelivery.Story.EpisodeCarry Carry { get; set; } // Episode 1'den aktarılanlar: karma, yolcular, seçimler
 
+    // --- Derin anlatı: kalıcı arşiv (bütün koşularda bulunan belgeler, kasetler ve hatıralar) ---
+    public List<string> Archive { get; set; } = new();          // Bir kez bulunan her kayıt arşivde kalır
+    public List<string> ArchiveRead { get; set; } = new();      // Arşiv ekranında okunanlar ("YENİ" etiketi için)
+    public bool MiniMapHidden { get; set; }                      // [N] ile gizlenen mini harita
+
     public string Equipped(CosmeticSlot slot) => slot switch
     {
         CosmeticSlot.Smoke => EquippedSmoke,
@@ -163,15 +168,18 @@ public sealed class SaveData
         }
         UnlockedChapter = Math.Clamp(UnlockedChapter, 1, MaxChapter);
         Story ??= new();
-        Story.Flags ??= new();
-        Story.Seen ??= new();
-        Story.Quests ??= new();
-        Story.Lore ??= new();
+        Story.Sanitize();
         Story2 ??= new();
-        Story2.Flags ??= new();
-        Story2.Seen ??= new();
-        Story2.Quests ??= new();
-        Story2.Lore ??= new();
+        Story2.Sanitize();
+        Archive ??= new();
+        ArchiveRead ??= new();
+        if (Carry != null)
+        {
+            Carry.Survivors ??= new();
+            Carry.Flags ??= new();
+            Carry.Trust ??= new();
+            Carry.Documents ??= new();
+        }
         if (Delivered) Episode1Complete = true;
         Episode2Unlocked = Math.Clamp(Episode2Unlocked, 1, TheLastDelivery.Story.Chapters.Episode2Count);
         Upgrades ??= new();

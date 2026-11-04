@@ -29,7 +29,7 @@ public readonly record struct ChatterLine(string Key, ChatterKind Kind, int MinC
 /// </summary>
 public sealed class DriveChatter
 {
-    private const int MaxPerChapter = 4;
+    private const int MaxPerChapter = 6; // Uzayan bölümlerde (8-12 dk) daha çok satır; aralar zamana bağlı kalır
     private const int ReactionCount = 4;
 
     // Bir yolcu öldüğünde, kaçtığında ya da hain çıktığında kabinin tepkisi (bekleyen tek satır)
@@ -178,6 +178,22 @@ public sealed class DriveChatter
     }
 
     private bool _wolf;
+
+    /// <summary>
+    /// Dışarıdan gelen tek satır (AURA'nın fısıltısı, hava cephesi anonsu). Ekranda satır varsa false döner.
+    /// <paramref name="aura"/>: kırmızı AURA çerçevesiyle gösterilir.
+    /// </summary>
+    public bool Say(string speaker, string text, ChatterKind kind, bool aura)
+    {
+        if (_age >= 0f) return false;
+        _kind = kind;
+        _aura = aura;
+        _wolf = false;
+        _speaker = speaker;
+        _text = text;
+        StartShowing();
+        return true;
+    }
 
     private void Begin(ChatterLine line, IReadOnlyList<Passenger> passengers, string speakerName = null)
     {

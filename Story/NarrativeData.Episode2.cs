@@ -289,7 +289,11 @@ public static partial class NarrativeData
             Hope("fire", Flags.E2Promise + "|" + Flags.E2Truth),
             Hope("names", Flags.E2Answered),
             Hope("heart", Flags.E2HeartHeard),
-            Hope("oracle", Flags.E2OracleRides));
+            Hope("oracle", Flags.E2OracleRides),
+            // Derin anlatı: Kask'ın sorusu, Marya'nın listesi ve AURA'nın yol boyunca kazanılan saygısı
+            Hope("kask", "e2.kaskAsk"),
+            Hope("list", "sqdone:marya.list"),
+            Hope("asked", "stance:>=40"));
         foreach (string arg in Flags.HopeArguments)
             Add(new NarrativeNode($"core.h.{arg}", aura, PortraitKind.Aura) { Next = "core.hub" });
         Talk("core.2", aura, PortraitKind.Aura,
@@ -318,7 +322,7 @@ public static partial class NarrativeData
     /// <summary>Episode 2 keşif sahnelerinin trene dönmek için gereken bayrağı.</summary>
     private static string Episode2SceneDone(TownArchetype scene) => scene switch
     {
-        TownArchetype.SignalTower => Flags.E2TowerDone,
+        TownArchetype.SignalTower => Flags.E2DemoClimax, // Konsol kırıldıktan sonra kulenin zirvesinde AURA ile yüzleşme
         TownArchetype.RelayStation => Flags.E2RelayDone,
         TownArchetype.SleepFactory => Flags.E2FactoryDone,
         TownArchetype.PolarBase => Flags.E2BaseDone,

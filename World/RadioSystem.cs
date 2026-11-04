@@ -11,13 +11,19 @@ public enum RadioChannelKind
 {
     Music, // Eski dünya şarkıları: dinlemek akıl sağlığını toparlar
     Mafia, // Kızıl Kurtlar'ın telsiz trafiği: pusu istihbaratı ve "paketi bize sat" teklifi
-    Sos    // İmdat çağrısı: yanıt verilirse yan rota görevi başlar
+    Sos,      // İmdat çağrısı: yanıt verilirse yan rota görevi başlar
+    Broadcast, // Hikâye yayını (panik anonsları, eski kayıtlar): dinlenince kaset olarak arşive girer
+    Phantom   // AURA'nın ses taklidi: ölü yakınların sesi; dinlemek akıl sağlığını aşındırır, yanıtlamak diyalog açar
 }
 
 /// <summary>İmdat görevinin türü.</summary>
 public enum SosMission { MilitaryTrain, ShelterSearch }
 
-public sealed record RadioChannel(RadioChannelKind Kind, RadioBand Band, float Frequency);
+public sealed record RadioChannel(RadioChannelKind Kind, RadioBand Band, float Frequency)
+{
+    /// <summary>Yayın metninin anahtarı (Broadcast: "bc.*", Phantom: "ph.*").</summary>
+    public string Key { get; init; }
+}
 
 /// <summary>
 /// Kabindeki telsiz. Her bölümde yayınlar farklı frekanslara dağılır; oyuncu FM/AM bantlarında
@@ -62,6 +68,24 @@ public sealed class RadioSystem
             SosAnswered = false;
         }
     }
+
+    /// <summary>Derin anlatı: hikâye yayını ya da AURA'nın ses taklidi kanalını ekler (aynı türden eskisi silinir).</summary>
+    public void SetChannel(RadioChannelKind kind, string key)
+    {
+        _channels.RemoveAll(c => c.Kind == kind);
+        if (key == null) return;
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            var band = _rng.Next(2) == 0 ? RadioBand.FM : RadioBand.AM;
+            float freq = band == RadioBand.FM ? RoundFm(89f + (float)_rng.NextDouble() * 17f) : RoundAm(560f + (float)_rng.NextDouble() * 1000f);
+            bool clash = _channels.Exists(c => c.Band == band && MathF.Abs(c.Frequency - freq) < (band == RadioBand.FM ? FmTolerance * 2.5f : AmTolerance * 2.5f));
+            if (clash) continue;
+            _channels.Add(new RadioChannel(kind, band, freq) { Key = key });
+            return;
+        }
+    }
+
+    public bool HasChannel(RadioChannelKind kind) => _channels.Exists(c => c.Kind == kind);
 
     public void SwitchBand() => Band = Band == RadioBand.FM ? RadioBand.AM : RadioBand.FM;
 

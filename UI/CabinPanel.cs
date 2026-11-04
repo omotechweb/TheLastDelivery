@@ -24,6 +24,9 @@ public static class CabinPanel
     private const int PanelX = 836, PanelY = 16, PanelWidth = 428;
     private static Rectangle Panel = new(PanelX, PanelY, PanelWidth, 350);
 
+    /// <summary>AURA'nın sahte yakıt göstergesi (oran sapması; Game1 her kare ayarlar).</summary>
+    public static float FuelLie { get; set; }
+
     /// <summary>Eğitimde vurgulanan yakıt satırı.</summary>
     public static readonly Rectangle FuelRow = new(PanelX + 8, PanelY + 74, PanelWidth - 16, 32);
 
@@ -55,7 +58,8 @@ public static class CabinPanel
         float dt = Math.Clamp(time - _lastTime, 0f, 0.1f);
         _lastTime = time;
         HealthBar.Update(train.Health / train.MaxHealth, dt);
-        FuelBar.Update(train.FuelRatio, dt);
+        float shownFuel = Microsoft.Xna.Framework.MathHelper.Clamp(train.FuelRatio + FuelLie, 0f, 1f); // AURA'nın sahte yakıt göstergesi
+        FuelBar.Update(shownFuel, dt);
         PackageBar.Update(train.Package / GameConfig.MaxPackage, dt);
 
         UiDraw.FancyPanel(sb, Panel, Hud.PanelEdge);
@@ -75,7 +79,7 @@ public static class CabinPanel
 
         int y = Panel.Y + 48;
         DrawSegmentedBar(sb, health, y, barX, HealthBar, train.Health / train.MaxHealth, time);
-        DrawSegmentedBar(sb, fuel, y + RowHeight, barX, FuelBar, train.FuelRatio, time);
+        DrawSegmentedBar(sb, fuel, y + RowHeight, barX, FuelBar, shownFuel, time);
         DrawSegmentedBar(sb, package, y + RowHeight * 2, barX, PackageBar, train.Package / GameConfig.MaxPackage, time);
 
         y += RowHeight * 3;

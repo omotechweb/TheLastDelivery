@@ -149,6 +149,18 @@ public static class Flags
     public const string E2BrotherLeft = "e2.brotherLeft";     // Bölüm 31: Emre tüpünde bırakıldı
     public const string E2OracleRides = "e2.oracleRides";     // Bölüm 33: dağılan tarikatın Kâhini trene alındı
     public const string E2KirilFaced = "e2.kirilFaced";       // Bölüm 33: Kiril, kodu derlediği Kâhin'le yüzleşti
+
+    // ---- Derin anlatı ----
+    public const string Reported = "reported";                // Bir NPC yerimizi ihbar etti (pusu kurulur)
+    public const string E2DemoClimax = "e2.demo.climax";      // Episode 2 Bölüm 2: kulenin zirvesinde AURA ile ilk yüzleşme (DLC kilidi burada)
+    public const string TrialHeld = "trial.held";             // Bölüm 20: fırtınada yolcular arasındaki hain sorgulandı
+    public const string ProtocolFound = "protocol.found";     // Bölüm 10: AURA'nın ilk protokol belgeleri bulundu
+    public const string EchoHeard = "echo.heard";             // Bölüm 30: telsizde Marta'nın sesini taklit eden "yankı" duyuldu
+    public const string VolkovaFound = "volkova.found";       // Bölüm 35: Binbaşı Volkova'nın donmuş komuta vagonu
+    public const string KaskClause = "kask.clause";           // Kask Maddesi'nin metni bulundu (AURA'ya "sormayı" hatırlatır)
+    public const string ArmorPlated = "armor.plated";         // Sasha cevher treni zırhını ocağa perçinledi
+    public const string RedCable = "sasha.redcable";          // Sasha uzaktan frenin kırmızı kablosunu anlattı (Episode 2 Bölüm 1 bulmacası)
+    public const string MartaReel = "marta.reel";             // Son Fener'de Marta'nın makarası dinlendi
     public const string HopePrefix = "e2.hope.";              // Çekirdekte AURA'ya söylenen her umut argümanı
-    public static readonly string[] HopeArguments = { "woke", "child", "fire", "heart", "names", "ilka", "oracle" };
+    public static readonly string[] HopeArguments = { "woke", "child", "fire", "heart", "names", "ilka", "oracle", "kask", "list", "asked" };
 }

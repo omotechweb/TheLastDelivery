@@ -23,11 +23,13 @@ public static class GameConfig
     public static float ApproachKm => Near(6f); // Durağa bu kadar kala otomatik fren başlar
 
     // --- Tempo ---
-    // Hikâye hatlarında (Episode 1, Acımasız Kış, Episode 2) tren aynı hızla görünür ama yol 12 kat yavaş
-    // sayılır: 50 km'lik bir sürüş bölümü ortalama 4-6 dakika sürer. Durağa yaklaşma gibi "ekran mesafeleri"
-    // Near() ile, bekleme süreleri ve pasif tüketimler aşağıdaki çarpanlarla aynı oranda ölçeklenir;
-    // böylece km başına yakıt, yemek ve akıl sağlığı dengesi değişmez.
-    public const float StoryPace = 12f;
+    // Hikâye hatlarında (Episode 1, Acımasız Kış, Episode 2) tren aynı hızla görünür ama yol 13 kat yavaş
+    // sayılır: 50 km'lik bir sürüş bölümü saf sürüşle ~4-6 dakika. Oyun bir hikâye oyunudur: bölümün öbür yarısını
+    // açılış sinematiği (uzun anlatım sahnesi), sürüş içi hikâye anları, hatıralar, telsiz yayınları ve yolcu
+    // diyalogları doldurur; bir bölüm toplamda ~10-14 dakika, kabaca %50 oynanış / %50 hikâyedir. Durağa yaklaşma gibi
+    // "ekran mesafeleri" Near() ile, bekleme süreleri ve pasif tüketimler aşağıdaki çarpanlarla aynı oranda
+    // ölçeklenir; böylece km başına yakıt, yemek ve akıl sağlığı dengesi değişmez.
+    public const float StoryPace = 13f;
     public static float Pace { get; set; } = 1f;
 
     /// <summary>Ekranda görülen kısa mesafe (yanaşma, kule menzili): tempoyla küçülür, süresi aynı kalır.</summary>
@@ -36,12 +38,24 @@ public static class GameConfig
     /// <summary>Pasif tüketim/yenilenme çarpanı (açlık, soba, akıl sağlığı): km başına değer sabit kalır.</summary>
     public static float NeedsScale => 1f / Pace;
 
-    /// <summary>Yol olayları arası bekleme: bölüm 12 kat uzarken olaylar yalnızca ~2.4 kat sıklaşır.</summary>
-    public static float EventCooldownScale => Pace > 1f ? 5f : 1f;
-    public static float AmbushCooldownScale => Pace > 1f ? 2f : 1f;
+    /// <summary>
+    /// Yol olayları arası bekleme: hikâye hatlarında olaylar zamana göre eskisinden ~%35 seyrek; sürüş bir
+    /// hayatta kalma testinden çok hikâyenin taşıyıcısıdır. Aradaki boşluğu telsiz, hatıra ve diyaloglar doldurur.
+    /// </summary>
+    public static float EventCooldownScale => Pace > 1f ? 9f : 1f;
+    public static float AmbushCooldownScale => Pace > 1f ? 3f : 1f;
 
-    /// <summary>Gün uzunluğu çarpanı: hikâye hatlarında bir gün ~2 bölüm sürer.</summary>
-    public static float DayScale => Pace > 1f ? 4f : 1f;
+    /// <summary>Gün uzunluğu çarpanı: hikâye hatlarında bir gün ~2 bölüm sürer (tempoyla orantılı).</summary>
+    public static float DayScale => Pace > 1f ? Pace / 3f : 1f;
+
+    // --- Derin anlatı: zihin oyunları, güven sonuçları, hava cepheleri ---
+    public const float MindGameSanity = 65f;        // AURA'nın gösterge manipülasyonu bu akıl sağlığının altında başlar
+    public const float StabDamage = 16f;            // Arkadan bıçaklayan yolcu: tren hasarı (kavga, devrilen kazan)
+    public const float StabSanity = 25f;
+    public const float PlatingArmorMultiplier = 0.8f; // Sasha'nın zırh plakası
+    public const float ReportAmbushDelay = 70f;     // İhbardan sonra pusunun kurulması (sürüş saniyesi)
+    public const float WeatherFrontMin = 70f;       // Hava cephesi değişimleri arası (saniye)
+    public const float WeatherFrontMax = 130f;
 
     // --- Hız ---
     public const float MaxSpeed = 120f;       // km/sa
@@ -178,8 +192,8 @@ public static class GameConfig
     public const float PanzerArmorMultiplier = 0.6f;   // Heavy Panzer Express: darbe hasarı %40 az
 
     // --- Hikâye güncellemesi: tehlike dengesi ---
-    public const float CalmHazardScale = 0.4f;      // Kritik olmayan bölümde vana patlaması ve kurt sürüsü %60 seyrek
-    public const float CalmAmbushScale = 0.4f;      // Kritik olmayan bölümde pusu sayısı %60 az
+    public const float CalmHazardScale = 0.3f;      // Kritik olmayan bölümde vana patlaması ve kurt sürüsü %70 seyrek
+    public const float CalmAmbushScale = 0.25f;     // Kritik olmayan bölümde pusu sayısı %75 az
     public const float ExtremeStorm = 0.8f;         // Bu fırtına yoğunluğunun üstünde tehlikeler tam sıklıkta
     public const float CriticalAmbushDelayMin = 3f; // Kritik bölümde ilk pusu bölümün başında kurulur
     public const float CriticalAmbushDelayMax = 6f;

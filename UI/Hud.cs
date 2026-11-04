@@ -19,6 +19,10 @@ public static class Hud
     private static readonly Rectangle SanityPanel = new(16, 16, 404, 252); // Akıl sağlığı satırıyla
     private static Rectangle Panel = BasePanel;
     private static readonly SmoothedValue SanityBar = new();
+
+    /// <summary>AURA'nın gösterge manipülasyonu: kazan ve hız göstergelerine eklenen sahte sapma (Game1 her kare ayarlar).</summary>
+    public static float TemperatureLie { get; set; }
+    public static float SpeedLie { get; set; }
     private const int Left = 32;
 
     public static readonly Color PanelBack = new Color(6, 8, 16) * 0.78f;
@@ -51,8 +55,11 @@ public static class Hud
         _lastTime = time;
         Panel = sanity >= 0f ? SanityPanel : BasePanel;
 
-        SpeedBar.Update(train.SpeedRatio, dt);
-        TemperatureBar.Update(train.Temperature / GameConfig.MaxTemperature, dt);
+        // AURA'nın zihin oyunları: akıl sağlığı düşükken göstergeler yalan söyler (TemperatureLie/SpeedLie)
+        float shownTemp = MathHelper.Clamp(train.Temperature + TemperatureLie, 0f, GameConfig.MaxTemperature);
+        float shownSpeed = MathHelper.Clamp(train.Speed + SpeedLie, 0f, GameConfig.MaxSpeed);
+        SpeedBar.Update(shownSpeed / GameConfig.MaxSpeed, dt);
+        TemperatureBar.Update(shownTemp / GameConfig.MaxTemperature, dt);
 
         // Hız değişirken değer parlar, durunca yavaşça normale döner
         if (MathF.Abs(train.Speed - _lastSpeed) > 0.01f) _speedFlash = 1f;
@@ -72,7 +79,7 @@ public static class Hud
         // Hız: hasarlı trende ulaşılamayan bölge kırmızı bir çentikle işaretlenir
         var speedColor = Color.Lerp(Value, Color.White, _speedFlash);
         var speedBar = DrawGauge(sb, speedLabel, 64, barX, SpeedBar, new Color(150, 180, 225),
-            Loc.F("hud.kmh", (int)MathF.Round(train.Speed)), speedColor, 0f);
+            Loc.F("hud.kmh", (int)MathF.Round(shownSpeed)), speedColor, 0f);
         if (train.MaxAllowedSpeed < GameConfig.MaxSpeed - 0.5f)
         {
             int limitX = speedBar.X + (int)(speedBar.Width * train.MaxAllowedSpeed / GameConfig.MaxSpeed);
@@ -81,10 +88,10 @@ public static class Hud
         }
 
         // Kazan sıcaklığı: soğukta mavi, idealde turuncu, aşırı ısınmada kırmızı; donmaya yakınken nabız
-        float tempRatio = train.Temperature / GameConfig.MaxTemperature;
-        float coldAlarm = train.Temperature < GameConfig.LowTemperatureWarning ? 0.5f + 0.5f * MathF.Sin(time * 6f) : 0f;
+        float tempRatio = shownTemp / GameConfig.MaxTemperature;
+        float coldAlarm = shownTemp < GameConfig.LowTemperatureWarning ? 0.5f + 0.5f * MathF.Sin(time * 6f) : 0f;
         DrawGauge(sb, boilerLabel, 96, barX, TemperatureBar, TemperatureColor(tempRatio),
-            $"{(int)MathF.Round(train.Temperature)}°C", Value, coldAlarm);
+            $"{(int)MathF.Round(shownTemp)}°C", Value, coldAlarm);
 
         sb.FillRect(new Rectangle(Left, 128, 372, 2), PanelEdge * 0.6f);
 

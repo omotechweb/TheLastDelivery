@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using TheLastDelivery.Graphics;
 using Microsoft.Xna.Framework.Input;
 using TheLastDelivery.Audio;
 using TheLastDelivery.Core;
@@ -37,6 +39,9 @@ public sealed class StoryRunner
     private string _contextTitle;
     private bool _showingResult;
     private bool _completePending;
+    private string _trustNpc;       // Güven barı gösterilen kişi (yoksa null)
+    private float _trustShown;      // Bar yumuşakça yeni değere kayar
+    private float _lastDraw;
 
     public bool IsOpen { get; private set; }
 
@@ -62,6 +67,10 @@ public sealed class StoryRunner
         }
 
         Narrative.MarkSeen(_node.Id);
+        _trustNpc = _node.Npc == "{p}" ? _passenger?.Profile.Id : _node.Npc ?? DialogueTreeManager.NpcForSpeaker(_node.SpeakerKey)
+                    ?? (_node.SpeakerKey == null ? null : _passenger?.Profile.Id);
+        DialogueTreeManager.Speaking = _trustNpc ?? _passenger?.Profile.Id;
+        _trustShown = _trustNpc != null ? DialogueTreeManager.Trust(_trustNpc) : 0;
         var summary = new List<string>();
         if (!string.IsNullOrEmpty(carriedSummary)) summary.Add(carriedSummary);
         if (_node.OnEnter != null)
@@ -85,11 +94,16 @@ public sealed class StoryRunner
             options.Add(new DialogOption((_shown.Count).ToString(), _node.OptionLabel(index), enabled));
         }
 
-        Speaker speaker = _node.SpeakerKey != null
+        // "{p}": konuşan, diyaloğun açıldığı yolcudur (genel sohbet ağları, mahkemedeki sanık)
+        Speaker speaker = _node.SpeakerKey == "{p}" && _passenger != null
+            ? new Speaker(_passenger.Name, Portraits.ForPassenger(_passenger.Profile.Id))
+            : _node.SpeakerKey == "{p}" ? null
+            : _node.SpeakerKey != null
             ? new Speaker(Loc.T(_node.SpeakerKey), _node.Portrait) { IsPlayer = _node.Portrait == PortraitKind.Arthur }
             : null;
         string title = _node.Title != null ? Loc.T(_node.Title) : speaker?.Name ?? _contextTitle;
-        string text = _node.Text + (summary.Count > 0 ? "\n\n" + string.Join("\n", summary) : "");
+        string body = _passenger != null ? _node.Text.Replace("{p}", _passenger.Name) : _node.Text;
+        string text = body + (summary.Count > 0 ? "\n\n" + string.Join("\n", summary) : "");
         _showingResult = false;
         _box.Open(title, text, options.Count > 0 ? options : null, "prompt.continue", speaker);
     }
@@ -147,6 +161,7 @@ public sealed class StoryRunner
             return;
         }
         audio.PlayConfirm();
+        DialogueTreeManager.RecordChoice(_node.Id, Array.IndexOf(_node.Options, option));
 
         string summary = option.Effect != null ? _host.Apply(option.Effect, _passenger) : null;
         if (option.Effect?.CompleteScene == true) _completePending = true;
@@ -162,7 +177,9 @@ public sealed class StoryRunner
         {
             // Sonuç: seçeneğin oyuna etkisi kısa bir pencerede
             _showingResult = true;
-            var speaker = _node.SpeakerKey != null ? new Speaker(Loc.T(_node.SpeakerKey), _node.Portrait) : null;
+            var speaker = _node.SpeakerKey == "{p}"
+                ? (_passenger != null ? new Speaker(_passenger.Name, Portraits.ForPassenger(_passenger.Profile.Id)) : null)
+                : _node.SpeakerKey != null ? new Speaker(Loc.T(_node.SpeakerKey), _node.Portrait) : null;
             _box.Open(speaker?.Name ?? _contextTitle, summary, null, "prompt.continue", speaker);
             return;
         }
@@ -171,6 +188,39 @@ public sealed class StoryRunner
 
     public void Draw(SpriteBatch sb, float time)
     {
-        if (IsOpen) _box.Draw(sb, time);
+        if (!IsOpen) return;
+        _box.Draw(sb, time);
+        DrawTrust(sb, time);
+    }
+
+    /// <summary>
+    /// Konuşulan kişinin güven/şüphe barı (pencerenin üstünde). AURA ile konuşurken AURA'nın Arthur'a tavrı gösterilir.
+    /// Değer yumuşakça yeni düzeye kayar; seçimin etkisi böylece görülür ama sayı olarak verilmez.
+    /// </summary>
+    private void DrawTrust(SpriteBatch sb, float time)
+    {
+        if (_trustNpc == null) return;
+        bool aura = _trustNpc == "aura";
+        float target = aura ? (DialogueTreeManager.Stance + 100) / 2f : DialogueTreeManager.Trust(_trustNpc);
+        float dt = Math.Clamp(time - _lastDraw, 0f, 0.1f);
+        _lastDraw = time;
+        _trustShown += (target - _trustShown) * Math.Clamp(dt * 4f, 0f, 1f);
+
+        var panel = new Rectangle(770, 8, 340, 38);
+        sb.FillRect(panel, new Color(5, 6, 12) * 0.82f);
+        sb.DrawBorder(panel, 2, new Color(80, 90, 115));
+        string label = aura ? Loc.F("trust.aura", DialogueTreeManager.StanceName)
+                            : Loc.F("trust.label", DialogueTreeManager.LevelName((int)MathF.Round(target)));
+        GameText.Draw(sb, label, new Vector2(panel.X + 10, panel.Y + 4), Hud.Label);
+        var bar = new Rectangle(panel.X + 10, panel.Y + 26, panel.Width - 20, 6);
+        sb.FillRect(bar, Color.Black * 0.7f);
+        float ratio = MathHelper.Clamp(_trustShown / 100f, 0f, 1f);
+        var fill = ratio < 0.35f ? Color.Lerp(new Color(230, 70, 60), new Color(240, 180, 70), ratio / 0.35f)
+                                 : Color.Lerp(new Color(240, 180, 70), new Color(110, 220, 130), (ratio - 0.35f) / 0.65f);
+        if (aura) fill = Color.Lerp(new Color(255, 50, 60), new Color(120, 200, 255), ratio);
+        sb.FillRect(new Rectangle(bar.X, bar.Y, (int)(bar.Width * ratio), bar.Height), fill);
+        // Eşik çentikleri: düşmanlık ve sadakat
+        foreach (int mark in new[] { DialogueTreeManager.Hostile, DialogueTreeManager.Loyal })
+            sb.FillRect(new Rectangle(bar.X + bar.Width * mark / 100, bar.Y - 2, 1, bar.Height + 4), Color.White * 0.45f);
     }
 }

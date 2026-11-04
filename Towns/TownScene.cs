@@ -15,7 +15,7 @@ using TheLastDelivery.World;
 namespace TheLastDelivery.Towns;
 
 /// <summary>Kasabada 'E' ile etkileşime geçilebilen şeyler. Spot: hikâye inceleme noktası (NarrativeData).</summary>
-public enum InteractableKind { Train, Tavern, Store, Npc, Mechanic, Bunker, Peddler, Thief, Spot }
+public enum InteractableKind { Train, Tavern, Store, Npc, Mechanic, Bunker, Peddler, Thief, Spot, Door, Exit }
 
 public sealed record Interactable(InteractableKind Kind, float X, float PromptY)
 {
@@ -27,6 +27,12 @@ public sealed record Interactable(InteractableKind Kind, float X, float PromptY)
 
     /// <summary>Yalnızca bu hikâye bayrağı varsa görünür (örn. haritayla bulunan zula).</summary>
     public string RequireFlag { get; init; }
+
+    /// <summary>Door türünde girilen iç mekân.</summary>
+    public InteriorKind? Interior { get; init; }
+
+    /// <summary>Kapı bir hizmet binasınınsa içerideki tezgâhın hizmeti (taverna, tamirci, sığınak).</summary>
+    public InteractableKind? Service { get; init; }
 }
 
 /// <summary>
@@ -38,7 +44,7 @@ public sealed record Interactable(InteractableKind Kind, float X, float PromptY)
 /// Buzul Tarikatı, Terk Edilmiş Karakol, Askeri Sınır Kapısı. Hikâye bölümlerinin keşif ve diyalog
 /// sahneleri de aynı yürüyüş modunu kendi şablonlarıyla kullanır.
 /// </summary>
-public sealed class TownScene
+public sealed partial class TownScene
 {
     private const float FeetY = 594f;                         // Arthur ve NPC'ler rayların önündeki karda yürür
     private const int BaseY = GameConfig.GroundY + 8;         // Binaların oturduğu kar çizgisi
@@ -115,6 +121,8 @@ public sealed class TownScene
         Town = town;
         TownKm = km;
         _layout = TownLayouts.For(town.Archetype);
+        _outdoor = null;
+        Interior = null;
         RefreshInteractables();
 
         bool thief = thiefDelay >= 0f && _layout.Thief;
@@ -133,6 +141,58 @@ public sealed class TownScene
         Nearest = null;
         _particles.Clear();
     }
+
+    // ---- İç mekân: Arthur bir binaya girer; dış yerleşim ve konumu saklanır ----
+    private TownLayout _outdoor;
+    private float _outdoorX;
+    private float _interiorTime;
+
+    /// <summary>Şu an içinde bulunulan bina (dışarıdaysa null).</summary>
+    public InteriorKind? Interior { get; private set; }
+    public bool IsInterior => Interior != null;
+
+    /// <summary>İçerideki hizmet tezgâhı (taverna, tamirci, sığınak) varsa onun türü.</summary>
+    public InteractableKind? InteriorService { get; private set; }
+
+    /// <summary>Kapıdan içeri girer: iç mekânın yerleşimi kurulur, Arthur çıkış kapısının yanında başlar.</summary>
+    public void EnterInterior(Interactable door)
+    {
+        if (door?.Interior == null || IsInterior) return;
+        _outdoor = _layout;
+        _outdoorX = _arthurX;
+        Interior = door.Interior;
+        InteriorService = door.Service;
+        _layout = InteriorCatalog.Build(door.Interior.Value, Town.Archetype, door.Service);
+        _arthurX = InteriorCatalog.ExitX + 90f;
+        _facing = 1;
+        _interiorTime = 0f;
+        CameraX = CameraFor(_arthurX);
+        _shownPrompt = null;
+        _promptAlpha = 0f;
+        Nearest = null;
+        _particles.Clear();
+        RefreshInteractables();
+    }
+
+    /// <summary>Binadan çıkar: Arthur kapının önüne döner.</summary>
+    public void ExitInterior()
+    {
+        if (!IsInterior) return;
+        _layout = _outdoor;
+        _arthurX = _outdoorX;
+        _outdoor = null;
+        Interior = null;
+        InteriorService = null;
+        CameraX = CameraFor(_arthurX);
+        _shownPrompt = null;
+        _promptAlpha = 0f;
+        Nearest = null;
+        _particles.Clear();
+        RefreshInteractables();
+    }
+
+    /// <summary>İç mekânın kartta ve başlıkta görünen adı.</summary>
+    public string InteriorName => Interior == null ? null : Loc.T(InteriorCatalog.NameKey(Interior.Value, Town.Archetype));
 
     /// <summary>Bayrağa bağlı inceleme noktalarını (örn. haritayla bulunan zula) yeniden değerlendirir.</summary>
     public void RefreshInteractables()
@@ -160,7 +220,7 @@ public sealed class TownScene
         if (_moving)
         {
             _facing = direction > 0 ? 1 : -1;
-            _arthurX = MathHelper.Clamp(_arthurX + direction * GameConfig.WalkSpeed * dt, 80f, GameConfig.TownWidth - 80f);
+            _arthurX = MathHelper.Clamp(_arthurX + direction * GameConfig.WalkSpeed * dt, 80f, _layout.Width - 80f);
             _walkTime += dt;
         }
 
@@ -168,7 +228,8 @@ public sealed class TownScene
         float previous = CameraX;
         CameraX = MathHelper.Lerp(CameraX, CameraFor(_arthurX), MathHelper.Clamp(dt * 6f, 0f, 1f));
 
-        UpdateThief(dt);
+        if (!IsInterior) UpdateThief(dt);
+        _interiorTime += dt;
 
         Nearest = null;
         float best = GameConfig.InteractRange;
@@ -183,7 +244,7 @@ public sealed class TownScene
         }
 
         // Hırsız yakındaysa her şeyden önce gelir
-        if (_thief is ThiefState.Approaching or ThiefState.Stealing && MathF.Abs(_thiefX - _arthurX) < GameConfig.InteractRange + 20f)
+        if (!IsInterior && _thief is ThiefState.Approaching or ThiefState.Stealing && MathF.Abs(_thiefX - _arthurX) < GameConfig.InteractRange + 20f)
             Nearest = new Interactable(InteractableKind.Thief, _thiefX, 420f);
 
         // Etkileşim kartı yumuşakça belirir/kaybolur; hedef değişince yeniden açılır (hırsız her karede yeni kayıt)
@@ -245,8 +306,8 @@ public sealed class TownScene
         }
     }
 
-    private static float CameraFor(float x) =>
-        MathHelper.Clamp(x - GameConfig.ScreenWidth / 2f, 0f, GameConfig.TownWidth - GameConfig.ScreenWidth);
+    private float CameraFor(float x) =>
+        MathHelper.Clamp(x - GameConfig.ScreenWidth / 2f, 0f, MathF.Max(0f, (_layout?.Width ?? GameConfig.TownWidth) - GameConfig.ScreenWidth));
 
     private void UpdateEffects(float dt)
     {
@@ -326,6 +387,12 @@ public sealed class TownScene
 
     public void DrawWorld(SpriteBatch sb, Train train)
     {
+        if (IsInterior)
+        {
+            DrawInteriorWorld(sb);
+            return;
+        }
+
         int left = (int)CameraX - 20;
         int width = GameConfig.ScreenWidth + 40;
 
@@ -375,8 +442,17 @@ public sealed class TownScene
         if (_layout.Gloom > 0f)
             sb.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight), new Color(4, 6, 14) * _layout.Gloom);
 
+        // Binaya girince adı kısaca görünür
+        if (IsInterior && _interiorTime < 2.8f)
+        {
+            float alpha = MathHelper.Clamp(_interiorTime / 0.4f, 0f, 1f) * MathHelper.Clamp((2.8f - _interiorTime) / 0.6f, 0f, 1f);
+            GameText.DrawCentered(sb, InteriorName, GameConfig.ScreenWidth / 2f + 3, 183, Color.Black * (0.6f * alpha), 4);
+            GameText.DrawCentered(sb, InteriorName, GameConfig.ScreenWidth / 2f, 180, Hud.Amber * alpha, 4);
+            GameText.DrawCentered(sb, Town.Name, GameConfig.ScreenWidth / 2f, 236, Hud.Label * alpha, 2);
+        }
+
         // Varışta kasaba adı birkaç saniye görünür
-        if (timeInTown < 4f)
+        if (timeInTown < 4f && !IsInterior)
         {
             float alpha = MathHelper.Clamp(timeInTown / 0.5f, 0f, 1f) * MathHelper.Clamp((4f - timeInTown) / 0.8f, 0f, 1f);
             GameText.DrawCentered(sb, Town.Name, GameConfig.ScreenWidth / 2f + 3, 253, Color.Black * (0.6f * alpha), 4);
@@ -389,7 +465,7 @@ public sealed class TownScene
             DrawPromptCard(sb, _shownPrompt);
 
         // Hırsız ekran dışındaysa solda yanıp sönen uyarı oku ve yağma ilerlemesi
-        if (_thief is ThiefState.Approaching or ThiefState.Stealing)
+        if (!IsInterior && _thief is ThiefState.Approaching or ThiefState.Stealing)
         {
             float screenX = _thiefX - CameraX;
             float pulse = 0.5f + 0.5f * MathF.Sin(_time * 10f);
@@ -407,7 +483,8 @@ public sealed class TownScene
             }
         }
 
-        GameText.Draw(sb, Loc.T(Town.IsStoryScene ? "scene.hint" : "town.hint"), new Vector2(24, GameConfig.ScreenHeight - 32), Hud.Label * 0.7f);
+        GameText.Draw(sb, Loc.T(IsInterior ? "int.hint" : Town.IsStoryScene ? "scene.hint" : "town.hint"),
+            new Vector2(24, GameConfig.ScreenHeight - 32), Hud.Label * 0.7f);
     }
 
     /// <summary>
@@ -427,10 +504,14 @@ public sealed class TownScene
             InteractableKind.Peddler => Loc.T("sign.peddler"),
             InteractableKind.Thief => Loc.T("town.thief"),
             InteractableKind.Spot => spot?.Name ?? target.SpotId,
+            InteractableKind.Door => Loc.T(InteriorCatalog.NameKey(target.Interior ?? InteriorKind.Tavern, Town.Archetype)),
+            InteractableKind.Exit => Loc.T("int.exit"),
             _ => Town.NpcName
         };
         string action = Loc.T(target.Kind switch
         {
+            InteractableKind.Exit => "int.action.exit",
+            InteractableKind.Tavern or InteractableKind.Mechanic or InteractableKind.Bunker when IsInterior => "town.action.talk",
             InteractableKind.Train => Town.IsStoryScene ? "scene.action.leave" : "town.action.board",
             InteractableKind.Npc or InteractableKind.Peddler => "town.action.talk",
             InteractableKind.Thief => "town.action.catch",
@@ -653,6 +734,7 @@ public sealed class TownScene
             case StructureKind.BlastDoor: DrawBlastDoor(sb, cx); break;
             case StructureKind.Elevator: DrawElevator(sb, cx); break;
             case StructureKind.SatelliteDish: DrawSatelliteDish(sb, cx); break;
+            default: DrawDeepStructure(sb, p); break; // Derin anlatı: donmuş insanlar, vagonlar, iç mekân eşyaları
         }
     }
 

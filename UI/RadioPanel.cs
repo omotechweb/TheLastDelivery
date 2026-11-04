@@ -11,7 +11,7 @@ using TheLastDelivery.World;
 
 namespace TheLastDelivery.UI;
 
-public enum RadioAction { None, AnswerSos, AcceptMafiaDeal, MafiaIntel }
+public enum RadioAction { None, AnswerSos, AcceptMafiaDeal, MafiaIntel, BroadcastHeard, AnswerPhantom, PhantomDrain }
 
 /// <summary>
 /// Kabin panosundaki TELSİZ ([T]): eski bir lambalı alıcı. Açıkken oyun zamanı durur.
@@ -35,6 +35,9 @@ public sealed class RadioPanel
     private float _soundTimer;      // Mors/konuşma seslerinin aralığı
     private float _listenTime;      // Mafya frekansında geçirilen süre (istihbarat için)
     private bool _intelGiven;
+
+    private float _broadcastTime;
+    private string _broadcastHeard;  // Bu bölümde arşive kaydedilen son yayın
 
     public bool IsOpen { get; private set; }
 
@@ -111,6 +114,27 @@ public sealed class RadioPanel
         {
             if (Channel.Kind == RadioChannelKind.Sos) { audio.PlayMorseSos(); _soundTimer = 3.2f; }
             else if (Channel.Kind == RadioChannelKind.Mafia) { audio.PlayRadioChatter(); _soundTimer = 2.4f; }
+            else if (Channel.Kind == RadioChannelKind.Broadcast) { audio.PlayRadioChatter(); _soundTimer = 3.0f; }
+            else if (Channel.Kind == RadioChannelKind.Phantom) { audio.PlayEerie(); _soundTimer = 5.5f; }
+        }
+
+        // Hikâye yayını: birkaç saniye net dinlenince kayıt arşive girer (kaset)
+        if (clear && Channel.Kind == RadioChannelKind.Broadcast)
+        {
+            _broadcastTime += dt;
+            if (_broadcastTime > 4f && _broadcastHeard != Channel.Key)
+            {
+                _broadcastHeard = Channel.Key;
+                return RadioAction.BroadcastHeard;
+            }
+        }
+        else _broadcastTime = 0f;
+
+        // AURA'nın ses taklidi: dinledikçe akıl sağlığı aşınır (Game1 uygular); ENTER ile sese yanıt verilir
+        if (clear && Channel.Kind == RadioChannelKind.Phantom)
+        {
+            if (input.AnyPressed(Keys.Enter, Keys.Space)) { audio.PlayEerie(); return RadioAction.AnswerPhantom; }
+            return RadioAction.PhantomDrain;
         }
 
         // Mafya frekansını biraz dinlemek pusu istihbaratı verir
@@ -217,6 +241,8 @@ public sealed class RadioPanel
             {
                 RadioChannelKind.Music => (Loc.T("radio.music"), Loc.T($"radio.music.{_line}"), new Color(150, 220, 255)),
                 RadioChannelKind.Mafia => (Loc.T("radio.mafia"), Loc.T(mafiaDealMade ? "radio.mafia.dealt" : $"radio.mafia.{_line}"), Hud.Danger),
+                RadioChannelKind.Broadcast => (Loc.T("radio.broadcast"), Loc.T(Channel.Key), new Color(200, 230, 255)),
+                RadioChannelKind.Phantom => (Loc.T("radio.phantom"), Loc.T(Channel.Key), new Color(255, 90, 100)),
                 _ => (Loc.T("radio.sos"), Loc.T(radio.SosType == SosMission.MilitaryTrain ? "radio.sos.military" : "radio.sos.shelter"), new Color(255, 210, 90))
             };
         }
@@ -240,6 +266,8 @@ public sealed class RadioPanel
             if (Channel.Kind == RadioChannelKind.Sos) action = Loc.T("radio.answer");
             else if (Channel.Kind == RadioChannelKind.Mafia && radio.MafiaOfferHeard && !mafiaDealMade) action = Loc.T("radio.deal");
             else if (Channel.Kind == RadioChannelKind.Music) action = Loc.T("radio.musicCalm");
+            else if (Channel.Kind == RadioChannelKind.Phantom) action = Loc.T("radio.answerPhantom");
+            else if (Channel.Kind == RadioChannelKind.Broadcast) action = Loc.T(_broadcastHeard == Channel.Key ? "radio.recorded" : "radio.recording");
         }
         if (action != null)
         {

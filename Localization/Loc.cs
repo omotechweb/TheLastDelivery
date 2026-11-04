@@ -11,15 +11,29 @@ namespace TheLastDelivery.Localization;
 /// </summary>
 public static class Loc
 {
+    // Derin anlatı güncellemesinin metinleri ayrı tablolardadır (StringsEnDeep, StringsTrDeep, StringsDeepUi) ve ana
+    // tabloların üstüne birleştirilir: aynı anahtar varsa yenisi geçerli olur (ör. güncellenen sahne kilidi metni).
     private static readonly Dictionary<Language, IReadOnlyDictionary<string, string>> Tables = new()
     {
-        [Language.Turkish] = StringsTr.Table,
-        [Language.English] = StringsEn.Table,
-        [Language.Spanish] = StringsEs.Table,
-        [Language.Chinese] = StringsZh.Table,
-        [Language.Hindi] = StringsHi.Table,
-        [Language.Arabic] = StringsAr.Table,
+        [Language.Turkish] = Merge(StringsTr.Table, StringsDeepUi.For(Language.Turkish), StringsTrDeep.Table),
+        [Language.English] = Merge(StringsEn.Table, StringsDeepUi.For(Language.English), StringsEnDeep.Table),
+        [Language.Spanish] = Merge(StringsEs.Table, StringsDeepUi.For(Language.Spanish)),
+        [Language.Chinese] = Merge(StringsZh.Table, StringsDeepUi.For(Language.Chinese)),
+        [Language.Hindi] = Merge(StringsHi.Table, StringsDeepUi.For(Language.Hindi)),
+        [Language.Arabic] = Merge(StringsAr.Table, StringsDeepUi.For(Language.Arabic)),
     };
+
+    private static IReadOnlyDictionary<string, string> Merge(params IReadOnlyDictionary<string, string>[] tables)
+    {
+        var merged = new Dictionary<string, string>(tables[0]);
+        for (int i = 1; i < tables.Length; i++)
+            foreach (var pair in tables[i]) merged[pair.Key] = pair.Value;
+        return merged;
+    }
+
+    /// <summary>Anahtarın İngilizce ya da Türkçe tabloda (ya da etkin dilde) karşılığı var mı?</summary>
+    public static bool Has(string key) =>
+        Tables[Current].ContainsKey(key) || Tables[Language.English].ContainsKey(key) || Tables[Language.Turkish].ContainsKey(key);
 
     public static Language Current { get; private set; } = Language.Turkish;
 

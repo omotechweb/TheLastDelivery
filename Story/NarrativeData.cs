@@ -59,6 +59,8 @@ public static partial class NarrativeData
         BuildQuests();
         BuildStoryBeats();
         BuildEpisode2();
+        BuildDeep();   // Derin anlatı: iç mekânlar, liderlerin diyalog ağları, belgeler, kasetler, hatıralar, dönüm noktaları
+        BuildDeep2();  // Episode 2 derin anlatı: demo bölümleri, AURA'nın felsefi sorguları, Kusursuz Dünya simülasyonları
     }
 
     // ==================================================================

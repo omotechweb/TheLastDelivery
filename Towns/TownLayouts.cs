@@ -12,7 +12,10 @@ public enum StructureKind
     Shrine, Totem, Tent, Ruin, Barracks, Watchtower, Barrier, Cage, Crate, Fence, Mailbox, Swing, Shed,
     Headquarters, RadioMast, Hut, LabDome, AuroraTower, Terminal, CoreCradle, ShelterWall, ArmoredCar, Searchlight,
     // Episode 2: AURA'nın makine dünyası
-    DroneTurret, SleepTubes, ServerRack, ChromeSpire, AuraScreen, SignalTowerBig, SentinelWreck, BlastDoor, Elevator, SatelliteDish
+    DroneTurret, SleepTubes, ServerRack, ChromeSpire, AuraScreen, SignalTowerBig, SentinelWreck, BlastDoor, Elevator, SatelliteDish,
+    // Derin anlatı: çevresel hikâye (dışarıda) ve iç mekân eşyaları
+    FrozenFigure, WagonWreck,
+    BarCounter, Fireplace, Shelf, Desk, Lockers, Workbench, Bunks, RadioConsole, MapBoard, Table, Boiler, TapeDeck
 }
 
 /// <summary>Bir yapının kasabadaki yeri. Variant: renk/biçim çeşidi (0 normal, 1-2 çeşit, 9 yıkık/karanlık).</summary>
@@ -32,7 +35,14 @@ public sealed record TownLayout(
     float PeddlerX = -1f,          // Seyyar satıcı (yoksa -1)
     bool Thief = false,            // Bu kasabada hırsız çıkabilir mi?
     float Gloom = 0f,              // 0-1: kasvet (karanlık perde)
-    bool DistantLights = true);    // Arka plandaki uzak evlerin ışıkları
+    bool DistantLights = true)     // Arka plandaki uzak evlerin ışıkları
+{
+    /// <summary>Yürünebilen genişlik (iç mekânlar dar).</summary>
+    public int Width { get; init; } = Core.GameConfig.TownWidth;
+
+    /// <summary>İç mekânsa türü (yoksa dış mekân).</summary>
+    public InteriorKind? Interior { get; init; }
+}
 
 /// <summary>
 /// Altı kasaba mimarisi ve altı hikâye sahnesi. Her biri farklı binalar, farklı NPC'ler ve
@@ -49,8 +59,32 @@ public static class TownLayouts
     public static TownLayout For(TownArchetype archetype)
     {
         if (!Cache.TryGetValue(archetype, out var layout))
-            Cache[archetype] = layout = Build(archetype);
+            Cache[archetype] = layout = WithExtras(archetype, Build(archetype));
         return layout;
+    }
+
+    /// <summary>
+    /// Derin anlatı eklemeleri: hizmet binaları (taverna, tamirci, sığınak) girilebilir kapılara dönüşür, ek binalar
+    /// (karakol, telsiz kulesi) ve dışarıdaki çevresel hikâye noktaları (donmuş insanlar, vagon enkazları) eklenir.
+    /// </summary>
+    private static TownLayout WithExtras(TownArchetype archetype, TownLayout layout)
+    {
+        var structures = new List<Placement>(layout.Structures);
+        structures.AddRange(InteriorCatalog.ExtraStructures(archetype));
+
+        var interactables = new List<Interactable>();
+        foreach (var item in layout.Interactables)
+        {
+            var interior = InteriorCatalog.ForService(item.Kind);
+            interactables.Add(interior != null
+                ? new Interactable(InteractableKind.Door, item.X, item.PromptY) { Interior = interior, Service = item.Kind, NameKey = item.NameKey }
+                : item);
+        }
+        foreach (var (kind, x, promptY) in InteriorCatalog.ExtraDoors(archetype))
+            interactables.Add(new Interactable(InteractableKind.Door, x, promptY) { Interior = kind });
+        interactables.AddRange(InteriorCatalog.ExtraSpots(archetype));
+
+        return layout with { Structures = structures.ToArray(), Interactables = interactables.ToArray() };
     }
 
     private static TownLayout Build(TownArchetype archetype) => archetype switch
