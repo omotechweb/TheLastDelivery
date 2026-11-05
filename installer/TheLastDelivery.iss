@@ -7,13 +7,13 @@
 ;          --self-contained true -p:PublishSingleFile=true -o C:\TheLastDelivery\publish
 ;   2) Bu dosyayı Inno Setup Compiler ile aç ve derle (Ctrl+F9),
 ;      ya da komut satırından:  ISCC.exe installer\TheLastDelivery.iss
-;   3) Kurulum dosyası: installer\Output\TheLastDelivery-Setup-2.6.0.exe
+;   3) Kurulum dosyası: installer\Output\TheLastDelivery-Setup-2.7.0.exe
 ;
 ;  Gereksinim: Inno Setup 6.3 veya üzeri (x64compatible mimari sözcüğü için).
 ; =====================================================================
 
 #define AppName      "The Last Delivery"
-#define AppVersion   "2.6.0"
+#define AppVersion   "2.7.0"
 #define AppPublisher "The Last Delivery"
 #define AppExeName   "TheLastDelivery.exe"
 #define PublishDir   "..\publish"
