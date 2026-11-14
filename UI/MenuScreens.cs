@@ -112,7 +112,12 @@ public static class MenuScreens
         float header = MathHelper.Clamp((timeInState - 0.4f) / 0.8f, 0f, 1f);
         float body = MathHelper.Clamp((timeInState - 1.0f) / 1.0f, 0f, 1f);
 
-        sb.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight), Color.Black * curtain);
+        // Perde yarı saydam: arkada yeni bölümün manzarası akar; üstte ve altta sinema şeritleri
+        sb.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight), Color.Black * (0.74f * curtain));
+        sb.Draw(Assets.Vignette, new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight), Color.Black * (0.9f * curtain));
+        int bar = (int)(64 * curtain);
+        sb.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, bar), Color.Black);
+        sb.FillRect(new Rectangle(0, GameConfig.ScreenHeight - bar, GameConfig.ScreenWidth, bar), Color.Black);
 
         GameText.DrawCentered(sb, Loc.F("chapter.label", chapter.Number), CenterX, 140, Hud.Amber * header, 3);
         int nameScale = GameText.Measure(chapter.Name, 6).X <= 1180 ? 6 : 4;
@@ -157,11 +162,14 @@ public static class MenuScreens
     // Duraklatma
     // ------------------------------------------------------------------
 
-    public static void DrawPause(SpriteBatch sb, string journeySummary)
+    /// <summary>Duraklatma menüsünün satırları (imleç sırası Game1'deki işlemlerle aynıdır).</summary>
+    public static readonly string[] PauseItems = { "pause.item.resume", "menu.settings", "pause.item.menu", "pause.item.quit" };
+
+    public static void DrawPause(SpriteBatch sb, string journeySummary, int cursor, float time)
     {
         sb.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight), new Color(4, 6, 14) * 0.75f);
 
-        var box = new Rectangle(200, 200, 880, 300);
+        var box = new Rectangle(200, 150, 880, 420);
         sb.FillRect(box, new Color(6, 8, 16) * 0.95f);
         sb.DrawBorder(box, 2, Hud.PanelEdge);
 
@@ -170,9 +178,23 @@ public static class MenuScreens
 
         GameText.DrawCentered(sb, journeySummary, CenterX, box.Y + 126, Hud.Label, 2);
         GameText.DrawCentered(sb, Loc.T("pause.controls"), CenterX, box.Y + 166, Hud.Label * 0.8f, 2);
+        GameText.DrawCentered(sb, Loc.T("pause.controls2"), CenterX, box.Y + 192, Hud.Label * 0.8f, 2);
 
-        GameText.DrawCentered(sb, Loc.T("pause.resume"), CenterX, box.Y + 220, Hud.Value, 3);
-        GameText.DrawCentered(sb, Loc.T("pause.quit"), CenterX, box.Y + 256, Hud.Danger * 0.9f, 2);
+        for (int i = 0; i < PauseItems.Length; i++)
+        {
+            bool selected = i == cursor;
+            int y = box.Y + 232 + i * 36;
+            if (selected)
+            {
+                var rect = new Rectangle((int)CenterX - 190, y - 4, 380, 32);
+                sb.FillRect(rect, Hud.Amber * 0.10f);
+                sb.DrawBorder(rect, 2, Hud.Amber * (0.7f + 0.3f * MathF.Sin(time * 5f)));
+            }
+            var idle = i == PauseItems.Length - 1 ? Hud.Danger * 0.8f : Hud.Label;
+            GameText.DrawCentered(sb, Loc.T(PauseItems[i]), CenterX, y, selected ? Color.White : idle, 2);
+        }
+
+        GameText.DrawCentered(sb, Loc.T("pause.nav"), CenterX, box.Bottom - 32, Hud.Label * 0.6f, 2);
     }
 
     private static void DrawKeyOption(SpriteBatch sb, string key, string label, int x, int y, float alpha)

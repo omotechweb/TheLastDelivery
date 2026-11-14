@@ -28,6 +28,7 @@ public static class StringsHi
         ["pause.title"] = "खेल रुका है",
         ["pause.summary"] = "अध्याय {0}   रास्ता: {1}/{2} किमी   यात्री: {3}/{4}   सामान: {5}/{6}",
         ["pause.controls"] = "W/S: गति   E: वाल्व   1: पुर्ज़े   2: कोयला   3: दवा",
+        ["pause.controls2"] = "H: सीटी   F11: फ़ुल स्क्रीन   P: फ़ोटो मोड",
         ["pause.resume"] = "जारी रखने के लिए ESC",
         ["pause.quit"] = "बाहर निकलने के लिए Q",
 

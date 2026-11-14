@@ -118,8 +118,7 @@ public static class ModLoader
     public static IReadOnlyList<(string Key, ModDialog Dialog)> Dialogs => DialogList;
 
     /// <summary>Elle kurulan modların klasörü (Modlar ekranında gösterilir).</summary>
-    public static string UserModFolder => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TheLastDelivery", "Mods");
+    public static string UserModFolder => Core.AppPaths.Combine("Mods");
 
     public static void LoadAll()
     {

@@ -16,7 +16,7 @@ namespace TheLastDelivery.UI;
 
 public enum MetaScreen { Main, Chapters, Shop, Skins, Dlc, Bonuses, Customize, Wasteland, Mods, Contracts, Episodes }
 
-public enum MetaAction { None, StartChapter, StartEndless, StartSpeedrun, StartWasteland, StartHardcore, OpenLanguage, Quit }
+public enum MetaAction { None, StartChapter, StartEndless, StartSpeedrun, StartWasteland, StartHardcore, OpenLanguage, OpenSettings, Quit }
 
 /// <summary>
 /// Ana menü ve alt ekranları:
@@ -39,7 +39,7 @@ public sealed partial class MetaMenu
     private static readonly string[] MainItems =
     {
         "menu.play", "menu.endless", "menu.speedrun", "menu.contracts", "menu.shop", "menu.skins",
-        "menu.dlc", "menu.bonuses", "menu.mods", "menu.langOpt", "menu.quitOpt"
+        "menu.dlc", "menu.bonuses", "menu.mods", "menu.settings", "menu.langOpt", "menu.quitOpt"
     };
 
     private int _skinScroll; // Skin listesi 10 satırdan uzun: kaydırılarak gösterilir
@@ -194,7 +194,8 @@ public sealed partial class MetaMenu
                         }
                         break;
                     case 8: Open(MetaScreen.Mods); break;
-                    case 9: return MetaAction.OpenLanguage;
+                    case 9: return MetaAction.OpenSettings;
+                    case 10: return MetaAction.OpenLanguage;
                     default: return MetaAction.Quit;
                 }
                 return MetaAction.None;
@@ -393,8 +394,8 @@ public sealed partial class MetaMenu
         for (int i = 0; i < MainItems.Length; i++)
         {
             bool selected = i == _cursor;
-            int y = 164 + i * 31;
-            var rect = new Rectangle((int)CenterX - 210, y, 420, 29);
+            int y = 162 + i * 29;
+            var rect = new Rectangle((int)CenterX - 210, y, 420, 28);
             if (selected)
             {
                 UiDraw.FancyPanel(sb, rect, Hud.Amber * fade);
@@ -432,6 +433,7 @@ public sealed partial class MetaMenu
             6 => Loc.T("menu.dlc.desc"),
             7 => Loc.T(DLCManager.Owns(DlcId.Supporter) ? "menu.bonuses.desc" : "bonus.needSupporter"),
             8 => Loc.F("menu.mods.desc", Modding.ModLoader.Mods.Count),
+            9 => Loc.T("menu.settings.desc"),
             _ => null
         };
         if (hint != null)

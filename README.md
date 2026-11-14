@@ -40,10 +40,16 @@ L           arşiv
 N           mini harita
 M           müzik kutusu
 P           fotoğraf
+H           düdük
+F11         tam ekran (ALT+ENTER da olur)
 ESC         duraklat
 ```
 
 Kasabalarda A/D ile yürüyüp E ile etkileşime giriyorsunuz. Diyaloglarda seçenekleri 1-4 ile seçiyor, SPACE ile ilerliyorsunuz.
+
+Ana menüdeki ve duraklatma menüsündeki **Ayarlar** ekranından ses düzeyini, ekran sarsıntısını, ışık parlamasını (bloom), hasar parlamasını ve alttaki kontrol ipuçlarını değiştirebilirsiniz. Ayarlar `settings.txt` dosyasında saklanıyor.
+
+Oyun kolu da çalışıyor (tuş dizilimi Ayarlar ekranının altında yazıyor): sol çubuk ve tetikler treni sürüyor, A onaylıyor, B geri dönüyor, X etkileşim, yön tuşları 1-4, START duraklatıyor. Ekrandaki ipuçları şimdilik klavye tuşlarını gösteriyor.
 
 ## Diller
 
@@ -76,6 +82,8 @@ Birkaç yer daha:
 - `Towns/`: kasabalar ve binaların içi
 - `World/Train.cs`: trenin kendisi
 - `Core/GameConfig.cs`: oyunun bütün denge ayarları
+- `World/Scenery.cs`: gökyüzü, gece-gündüz renkleri, kutup ışıkları ve parallax manzara
+- `Game1.Display.cs`: 1280x720 sanal tuval, tam ekran ve ekran görüntüsü betiği (`TLD_SCRIPT`)
 
 `ModKit/` klasöründe basit bir mod örneği var. Metinleri değiştirmek ya da yeni metin eklemek için oradan başlayabilirsiniz.
 

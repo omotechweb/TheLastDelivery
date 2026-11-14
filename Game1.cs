@@ -40,9 +40,7 @@ public partial class Game1 : Game, INarrativeHost
     private SpriteBatch _spriteBatch;
 
     // Dünya
-    private ParallaxLayer _mountains;   // En arka: yavaş kayan dağlar
-    private ParallaxLayer _pines;       // Orta: kurumuş çamlar
-    private ParallaxLayer _ground;      // Ön: karlı zemin ve traversler
+    private readonly Scenery _scenery = new(); // Gökyüzü, parallax katmanları, zemin ve hat kenarı
     private SnowSystem _snow;
     private Train _train;
     private readonly Weather _weather = new();
@@ -122,6 +120,9 @@ public partial class Game1 : Game, INarrativeHost
 
     // Canlı içerik: görevler, garaj, evcil hayvan, fotoğraf modu, dönemsel etkinlikler
     private readonly GarageScreen _garage = new();
+    private readonly SettingsScreen _settings = new(); // Ayarlar: ana menüden ve duraklatma menüsünden açılır
+    private int _pauseCursor;                   // Duraklatma menüsündeki seçili satır (MenuScreens.PauseItems)
+    private float _pauseTime;                   // Duraklatma menüsünün kendi saati (oyun zamanı donmuşken imleç nabzı için)
     private readonly PhotoMode _photo = new();
     private bool _chapterHealthLost;            // Bu bölümde hasar alındı mı? ("Hasarsız bölüm" görevi)
     private float _contractFlushTimer;
@@ -187,27 +188,17 @@ public partial class Game1 : Game, INarrativeHost
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         Assets.Load(GraphicsDevice);
+        InitDisplay(); // Sanal 1280x720 tuval, tam ekran ve pencere ölçekleme
         Narrative.AboardCheck = id => _cabin.HasProfile(id); // "aboard:oskar" gibi diyalog koşulları
 
-        // Parallax katmanları: hız çarpanı 0.1 / 0.4 / 1.0
-        _mountains = new ParallaxLayer(
-            TextureFactory.CreateMountainLayer(GraphicsDevice, 1280, 280,
-                color: new Color(16, 20, 34), rimColor: new Color(60, 70, 96), fogColor: new Color(30, 36, 58)),
-            speedFactor: 0.1f, y: GameConfig.GroundY - 260);
-
-        _pines = new ParallaxLayer(
-            TextureFactory.CreateDeadPineLayer(GraphicsDevice, 1024, 200, new Color(9, 11, 19), seed: 7),
-            speedFactor: 0.4f, y: GameConfig.GroundY - 180);
-
-        _ground = new ParallaxLayer(
-            TextureFactory.CreateSnowGround(GraphicsDevice, 1024, GameConfig.ScreenHeight - GameConfig.GroundY,
-                railRow: GameConfig.RailY - GameConfig.GroundY, seed: 42),
-            speedFactor: 1f, y: GameConfig.GroundY);
+        _scenery.Load(GraphicsDevice);
 
         _snow = new SnowSystem(650, GameConfig.ScreenWidth, GameConfig.ScreenHeight);
         _train = new Train();
 
         _audio = new ProceduralAudio();
+        Settings.Load(); // Ses düzeyi, sarsıntı, bloom ve diğer oyuncu ayarları
+        _audio.UserVolume = Settings.VolumeScale;
         _audioManager = new AudioManager(_audio);
         _events.Started += OnRoadEventStarted;
         _events.LampHit += OnLampHit;
@@ -243,9 +234,9 @@ public partial class Game1 : Game, INarrativeHost
         _photo.Dispose();
         _audioManager?.Dispose();
         _lightMap.Dispose();
-        _mountains?.Dispose();
-        _pines?.Dispose();
-        _ground?.Dispose();
+        _scenery.Dispose();
+        _canvas?.Dispose();
+        if (_bloom != null) foreach (var target in _bloom) target.Dispose();
         Assets.Unload();
         _spriteBatch?.Dispose();
         base.UnloadContent();
@@ -279,6 +270,7 @@ public partial class Game1 : Game, INarrativeHost
         GiveStartingKit();
         _screenShake = 0f;
         _lastHealth = _train.Health;
+        ResetFeel();
         _stormSlowed = false;
         _stoveWarned = false;
         _lastEventType = null;
@@ -1161,16 +1153,56 @@ public partial class Game1 : Game, INarrativeHost
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         dt = MathF.Min(dt, 0.1f); // Pencere sürüklenirken oluşan dev sıçramaları engelle
 
-        var keys = Keyboard.GetState();
+        // Oyun kolunun tuşları klavye durumuna eklenir; oyunun geri kalanı yalnızca klavyeyi görür
+        var realKeys = Keyboard.GetState();
+        GamepadInput.Update(dt, _isPaused);
+        var keys = DevInput(GamepadInput.Merge(realKeys), ref dt);
 
+        // F11 ya da ALT+ENTER: tam ekran
+        if (WasPressed(keys, Keys.F11) || WasPressed(keys, Keys.Enter) && (keys.IsKeyDown(Keys.LeftAlt) || keys.IsKeyDown(Keys.RightAlt)))
+        {
+            ToggleFullscreen();
+            _previousKeys = keys;
+            base.Update(gameTime);
+            return;
+        }
+
+        // Koldaki START da ESC sayılır ama ana menüde oyunu kapatmaz (yalnızca klavyedeki ESC kapatır)
         if (WasPressed(keys, Keys.Escape))
-            HandleEscape();
+            HandleEscape(realKeys.IsKeyDown(Keys.Escape) || _devScript != null);
+
+        // Ayarlar ekranı: açıkken her şey bekler; değişiklikler anında uygulanır
+        if (_settings.IsOpen)
+        {
+            if (_settings.Update(dt, new InputState(keys, _previousKeys), _audio) == SettingsAction.ToggleFullscreen)
+                ToggleFullscreen();
+            UpdateAudio();
+            _previousKeys = keys;
+            base.Update(gameTime);
+            return;
+        }
 
         if (_isPaused)
         {
-            // Duraklatılmışken dünya donar; yalnızca ESC (devam) ve Q (çıkış) dinlenir
+            // Duraklatılmışken dünya donar; yalnızca duraklatma menüsü dinlenir (ESC devam, Q çıkış kısayolları kalır)
+            _pauseTime += dt;
+            var pauseInput = new InputState(keys, _previousKeys);
+            int items = MenuScreens.PauseItems.Length;
+            if (pauseInput.AnyPressed(Keys.W, Keys.Up)) { _pauseCursor = (_pauseCursor - 1 + items) % items; _audio.PlayClick(); }
+            if (pauseInput.AnyPressed(Keys.S, Keys.Down)) { _pauseCursor = (_pauseCursor + 1) % items; _audio.PlayClick(); }
             if (WasPressed(keys, Keys.Q))
                 Exit();
+            if (pauseInput.AnyPressed(Keys.Enter, Keys.Space))
+            {
+                _audio.PlayClick();
+                switch (_pauseCursor)
+                {
+                    case 0: _isPaused = false; break;
+                    case 1: _settings.Open(); break;
+                    case 2: ResetGame(); break; // Ana menüye dön (yolculuk bırakılır)
+                    default: Exit(); break;
+                }
+            }
             UpdateAudio();
             _previousKeys = keys;
             base.Update(gameTime);
@@ -1400,8 +1432,14 @@ public partial class Game1 : Game, INarrativeHost
         GameText.DrawRight(sb, text, GameConfig.ScreenWidth - 24, GameConfig.ScreenHeight - 40, Color.White * 0.9f);
     }
 
-    private void HandleEscape()
+    private void HandleEscape(bool fromKeyboard = true)
     {
+        if (_settings.IsOpen)
+        {
+            _settings.Close();
+            _audio.PlayClick();
+            return;
+        }
         if (_hack.IsOpen) // ESC hack'ten vazgeçer (kulede kaçırılmış sayılır)
         {
             _hack.Close();
@@ -1437,6 +1475,7 @@ public partial class Game1 : Game, INarrativeHost
         if (IsInJourney)
         {
             _isPaused = !_isPaused;
+            _pauseCursor = 0;
             _audio.PlayClick();
         }
         else if (_state == GameState.TutorialPrompt || (_state == GameState.LanguageSelect && _languageChosen))
@@ -1448,7 +1487,7 @@ public partial class Game1 : Game, INarrativeHost
         {
             _audio.PlayClick(); // Alt ekrandan ana menüye
         }
-        else
+        else if (fromKeyboard)
         {
             Exit();
         }
@@ -1479,6 +1518,9 @@ public partial class Game1 : Game, INarrativeHost
                 break;
             case MetaAction.StartSpeedrun:
                 StartSpeedrun();
+                break;
+            case MetaAction.OpenSettings:
+                _settings.Open();
                 break;
             case MetaAction.OpenLanguage:
                 OpenLanguageSelect();
@@ -1528,9 +1570,7 @@ public partial class Game1 : Game, INarrativeHost
         UpdateSanity(dt);
 
         float scroll = _train.ScrollSpeed * dt;
-        _mountains.Update(scroll);
-        _pines.Update(scroll);
-        _ground.Update(scroll);
+        _scenery.Update(scroll, dt, _weather.WindSpeed);
         _decorScroll += scroll;
         UpdateThemeEffects(dt);
         _snow.Update(dt, _train.ScrollSpeed, _time, _weather);
@@ -1681,7 +1721,11 @@ public partial class Game1 : Game, INarrativeHost
         float lost = _lastHealth - _train.Health;
         if (lost > 0.05f && IsTravelling) _chapterHealthLost = true;
         if (lost > 0.05f && IsInJourney && _state is not (GameState.GameOver or GameState.Victory))
+        {
             AddShake(lost * GameConfig.DamageShakePerPoint);
+            OnHullDamage(lost);
+        }
+        UpdateFeel(dt);
         _lastHealth = _train.Health;
         _screenShake = MathF.Max(0f, _screenShake - (8f + _screenShake * 6f) * dt);
     }
@@ -1788,6 +1832,7 @@ public partial class Game1 : Game, INarrativeHost
             _train.Throttle(-1, dt);
 
         HandleItemKeys(keys);
+        TryWhistle(keys);
 
         // Hikâye modunda vana patlaması ve kurt sürüsü yalnızca kritik bölümde ya da aşırı fırtınada tam sıklıkta
         _events.HazardScale = !IsStoryMode || CurrentChapter.IsCritical || _weather.Intensity >= GameConfig.ExtremeStorm
@@ -2444,9 +2489,7 @@ public partial class Game1 : Game, INarrativeHost
     private void UpdateTown(float dt, InputState input)
     {
         float cameraDelta = _townScene.Update(dt, input, canMove: _townDialog == TownDialog.None);
-        _mountains.Update(cameraDelta);
-        _pines.Update(cameraDelta);
-        _ground.Update(cameraDelta);
+        _scenery.Update(cameraDelta, 0f, 0f);
 
         if (_townScene.ConsumeThiefAlert())
         {
@@ -3589,6 +3632,16 @@ public partial class Game1 : Game, INarrativeHost
 
     protected override void Draw(GameTime gameTime)
     {
+        // Her şey sanal tuvale çizilir, sonra pencereye ölçeklenir
+        GraphicsDevice.SetRenderTarget(_canvas);
+        DrawFrame();
+        DevSaveShot();
+        PresentCanvas();
+        base.Draw(gameTime);
+    }
+
+    private void DrawFrame()
+    {
         // Sarsıntı bu karede bir kez hesaplanır: hem ışık haritası hem sahne aynı kaymayı kullanır
         _frameShake = RouteShake();
 
@@ -3599,7 +3652,6 @@ public partial class Game1 : Game, INarrativeHost
         if (_photo.IsActive)
         {
             DrawPhotoMode();
-            base.Draw(gameTime);
             return;
         }
 
@@ -3611,18 +3663,24 @@ public partial class Game1 : Game, INarrativeHost
         else
             DrawRouteScene();
 
+        ApplyBloom(); // Parlak yüzeyler (far, pencereler, kor, kutup ışığı) çevresine ışık saçar
+
         // Arayüz: sarsıntı ve kameradan bağımsız. PointClamp piksel dokuları keskin tutar.
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
 
         DrawAtmosphereOverlay();
+        if (_state is GameState.Driving or GameState.Arriving or GameState.Chase or GameState.Sentinel) DrawFeel();
         DrawInterface();
 
         if (_isPaused)
         {
             string summary = Loc.F("pause.summary", CurrentChapter.Number, (int)_travelledKm, (int)GameConfig.TotalDistanceKm,
                 _cabin.Count, _cabin.Capacity, _inventory.UsedSlots, GameConfig.InventorySlots);
-            MenuScreens.DrawPause(_spriteBatch, summary);
+            MenuScreens.DrawPause(_spriteBatch, summary, _pauseCursor, _pauseTime);
         }
+
+        if (_settings.IsOpen)
+            _settings.Draw(_spriteBatch, _fullscreen);
 
         // Sahne geçişi: her şeyin üstünde siyaha kararma
         float fade = FadeAlpha;
@@ -3630,7 +3688,6 @@ public partial class Game1 : Game, INarrativeHost
             _spriteBatch.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight), Color.Black * fade);
 
         _spriteBatch.End();
-        base.Draw(gameTime);
     }
 
     /// <summary>Yol sahnesi: arka plan, duraklar, ray, tren ve (varsa) mafya kovalamacası. Kovalamacada sarsılır.</summary>
@@ -3644,6 +3701,7 @@ public partial class Game1 : Game, INarrativeHost
         float random = _collapseShake + (_isPaused ? 0f : _screenShake);
         if (random > 0f)
             shake += new Vector2(((float)_rng.NextDouble() * 2f - 1f) * random, ((float)_rng.NextDouble() * 2f - 1f) * random * 0.6f);
+        shake *= Settings.ShakeScale; // Oyuncu ayarı: sarsıntı kısılabilir ya da kapatılabilir
         return new Vector2(MathF.Round(shake.X), MathF.Round(shake.Y));
     }
 
@@ -3674,6 +3732,10 @@ public partial class Game1 : Game, INarrativeHost
     private void DrawSceneLights(SpriteBatch sb)
     {
         _train.DrawLightMask(sb, _cabin.Count);
+
+        // Gökyüzü kendi ışığıyla görünür kalır: karanlık yeri ve treni örter, yıldızları ve kutup ışığını değil
+        if (CurrentChapter.Theme != ChapterTheme.Tunnels && !_events.IsBlizzard)
+            _scenery.DrawSkyLight(sb, 0.86f * MathHelper.Clamp(1f - _weather.Intensity * 0.8f, 0f, 1f));
 
         void Light(Vector2 center, float radius, float strength) =>
             sb.Draw(Assets.Glow, new Rectangle((int)(center.X - radius), (int)(center.Y - radius), (int)(radius * 2), (int)(radius * 2)),
@@ -3763,7 +3825,7 @@ public partial class Game1 : Game, INarrativeHost
 
         _train.DrawLights(_spriteBatch);
         _themeParticles.Draw(_spriteBatch);
-        _snow.Draw(_spriteBatch);
+        _snow.Draw(_spriteBatch, _train.HeadlampPosition, _train.HeadlightBroken ? 0f : _train.HasLantern ? 640f : 430f);
         if (inRun && IsTravelling && _events.IsBlizzard) DrawBlizzard(_events.Active);
         if (inRun && chapter.Theme == ChapterTheme.AcidWaste) DrawAcidWeather();
         _spriteBatch.End();
@@ -4201,31 +4263,18 @@ public partial class Game1 : Game, INarrativeHost
         _spriteBatch.End();
     }
 
-    /// <summary>Gökyüzü, ay ve parallax katmanları (dağlar, çamlar, karlı zemin).</summary>
-    private void DrawBackdrop()
+    /// <summary>Manzaranın bu karedeki koşulları: günün saati, fırtına, bölüm teması.</summary>
+    private SceneryView CurrentView()
     {
-        var screen = new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.ScreenHeight);
-        float storm = _weather.Intensity;
-
-        // Gökyüzü: gece laciverti, fırtına büyüdükçe koyu griye döner
-        _spriteBatch.Draw(Assets.Sky, screen, Color.White);
-        _spriteBatch.Draw(Assets.StormSky, screen, Color.White * storm);
-
-        // Bulutların ardındaki ay, fırtınada kaybolur (menü ve final başlıklarının arkasında kalmasın diye yalnızca yolculukta)
-        var moon = new Vector2(640, 120);
-        float moonVisibility = IsInJourney ? 1f - storm * 0.9f : 0f;
-        _spriteBatch.DrawGlow(moon, 180f, new Color(120, 140, 190), 0.25f * moonVisibility);
-        _spriteBatch.Draw(Assets.Circle, new Rectangle((int)moon.X - 26, (int)moon.Y - 26, 52, 52),
-            new Color(190, 198, 215) * (0.55f * moonVisibility));
-
-        // Parallax katmanları (arkadan öne); fırtına uzak katmanları sise gömer
-        var haze = new Color(48, 50, 58);
-        _mountains.Draw(_spriteBatch, GameConfig.ScreenWidth);
-        _spriteBatch.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.GroundY), haze * (0.35f * storm));
-        _pines.Draw(_spriteBatch, GameConfig.ScreenWidth);
-        _spriteBatch.FillRect(new Rectangle(0, 0, GameConfig.ScreenWidth, GameConfig.GroundY), haze * (0.15f * storm));
-        _ground.Draw(_spriteBatch, GameConfig.ScreenWidth);
+        bool menu = _state is GameState.MainMenu or GameState.LanguageSelect or GameState.TutorialPrompt;
+        var theme = menu ? ChapterTheme.Plains : CurrentChapter.Theme;
+        float aurora = menu ? 1f : _mode == GameMode.Episode2 ? 1.25f : theme == ChapterTheme.Night ? 1.2f : 0.75f;
+        return new SceneryView(menu ? 0.76f : _dayCycle.Phase, _weather.Intensity, _time, theme,
+            Bodies: IsInJourney, Roadside: !menu && _state != GameState.Town, aurora);
     }
+
+    /// <summary>Gökyüzü, gök cisimleri, parallax katmanları, karlı zemin ve hat kenarı.</summary>
+    private void DrawBackdrop() => _scenery.Draw(_spriteBatch, CurrentView());
 
     /// <summary>Ray; buzlu bölgede buz mavisine döner ve üstünde parıltılar belirir.</summary>
     private void DrawRails()

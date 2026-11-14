@@ -264,6 +264,9 @@ public sealed class ProceduralAudio : IDisposable
     public void PlayTink() => AddTone(2200f, 3300f, 0.08f, 0.07f, 0f, Wave.Sine);
 
     /// <summary>Duraklatıldığında her şey kısılır ama tamamen susmaz.</summary>
+    /// <summary>Oyuncunun ayarlardan seçtiği ana ses düzeyi (0-1).</summary>
+    public float UserVolume { get; set; } = 1f;
+
     public void SetPaused(bool paused) => _masterTarget = paused ? 0.2f : 0.7f;
 
     // ------------------------------------------------------------------
@@ -371,7 +374,7 @@ public sealed class ProceduralAudio : IDisposable
 
             _static += (_staticTarget - _static) * Smoothing;
             float mix = (EngineSample(noise) + WindSample(noise) + RailSample(noise) + HowlSample()
-                         + MusicSample() + MixTones() + MixBursts(noise) + noise * _static) * _master;
+                         + MusicSample() + MixTones() + MixBursts(noise) + noise * _static) * _master * UserVolume;
             mix = Math.Clamp(mix, -1f, 1f);
 
             short sample = (short)(mix * short.MaxValue);

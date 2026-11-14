@@ -126,6 +126,7 @@ public static class Hud
 
     public static void DrawControlsHint(SpriteBatch sb)
     {
+        if (!Settings.Hints) return; // Ayarlardan kapatılabilir
         GameText.Draw(sb, Loc.T("hud.controls"), new Vector2(24, GameConfig.ScreenHeight - 32), new Color(150, 160, 185) * 0.7f);
     }
 

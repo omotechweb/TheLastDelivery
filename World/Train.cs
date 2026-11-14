@@ -76,6 +76,8 @@ public sealed class Train
     private int _steamLevel;   // 0 yok, 1 sızıntı (tıslama), 2 patlamış vana
     private bool _grinding;    // Buzlu rayda kızaklanma
     private int _passengerCount;
+    private float _braking;    // Fren kıvılcımlarının kalan süresi
+    private float _emberTimer;
 
     public float Speed { get; private set; }        // km/sa
     public float Fuel { get; private set; }         // 0 - 100
@@ -255,6 +257,7 @@ public sealed class Train
         }
         else
         {
+            if (Speed > 35f) _braking = 0.12f; // Sert fren: tekerlerden kıvılcım
             Speed = MathF.Max(0f, Speed - GameConfig.Deceleration * dt);
         }
     }
@@ -369,6 +372,34 @@ public sealed class Train
 
         if (_grinding)
             EmitSparks();
+
+        if (_braking > 0f)
+        {
+            _braking -= dt;
+            if (Speed > 20f) EmitBrakeSparks();
+        }
+
+        // Bacadan savrulan korlar: tren hızlandıkça sıklaşır
+        if (engineAlive && Skin.Model == Economy.TrainModel.Standard)
+        {
+            _emberTimer -= dt;
+            if (_emberTimer <= 0f)
+            {
+                _emberTimer = MathHelper.Lerp(0.5f, 0.06f, SpeedRatio) * (0.6f + (float)_rng.NextDouble() * 0.8f);
+                _effects.Emit(new Particle
+                {
+                    Position = Origin + ChimneyTop + new Vector2(_rng.Next(-7, 8), -2),
+                    Velocity = new Vector2(-ScrollSpeed * 0.2f + _rng.Next(-25, 26), -_rng.Next(70, 170)),
+                    Life = 0.7f + (float)_rng.NextDouble() * 0.9f,
+                    Size = _rng.Next(4) == 0 ? 1.5f : 1f,
+                    Color = _rng.Next(3) == 0 ? new Color(255, 220, 150) : new Color(255, 130, 50),
+                    Alpha = 1f,
+                    WindInfluence = 0.75f,
+                    Gravity = 60f,
+                    Additive = true
+                });
+            }
+        }
 
         // Kabin sobası yanıyorsa ana vagonun küçük bacasından ince duman
         if (engineAlive && StoveLevel > 0.02f)
@@ -528,6 +559,45 @@ public sealed class Train
                     Additive = true
                 });
             }
+        }
+    }
+
+    /// <summary>Sert frende bütün tekerlerden geriye savrulan kıvılcımlar.</summary>
+    private void EmitBrakeSparks()
+    {
+        foreach (var wheel in DriveWheels)
+        {
+            _effects.Emit(new Particle
+            {
+                Position = Origin + new Vector2(wheel.X + _rng.Next(-10, 11), -1),
+                Velocity = new Vector2(-(_rng.Next(40, 200) * SpeedRatio + 30f), -_rng.Next(20, 110)),
+                Life = 0.2f + (float)_rng.NextDouble() * 0.25f,
+                Size = 1f,
+                Color = new Color(255, 200, 110),
+                Alpha = 1f,
+                Gravity = 420f,
+                Additive = true
+            });
+        }
+    }
+
+    /// <summary>Düdük: buhar domunun yanındaki düdükten yükselen beyaz buhar sütunu.</summary>
+    public void Whistle()
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            _effects.Emit(new Particle
+            {
+                Position = Origin + new Vector2(386 + _rng.Next(-2, 3), -108),
+                Velocity = new Vector2(_rng.Next(-18, 19), -(130f + _rng.Next(0, 150))),
+                Life = 0.5f + (float)_rng.NextDouble() * 0.7f,
+                Size = 3f + _rng.Next(3),
+                Growth = 3f,
+                Color = new Color(235, 240, 248),
+                Alpha = 0.7f,
+                WindInfluence = 0.5f,
+                Soft = true
+            });
         }
     }
 
@@ -817,6 +887,10 @@ public sealed class Train
 
         void Box(int x, int y, int w, int h, Color c) => sb.FillRect(new Rectangle(o.X + x, o.Y + y, w, h), c);
 
+        // Gövdenin kara düşen gölgesi
+        sb.FillRect(new Rectangle(RearX + 4, (int)Origin.Y + 5, FrontX - RearX - 8, 5), Color.Black * 0.3f);
+        sb.FillRect(new Rectangle(RearX + 14, (int)Origin.Y + 10, FrontX - RearX - 28, 3), Color.Black * 0.16f);
+
         // ---------- Ek vagonlar (ana vagonun arkasında, solda) ----------
         DrawExtraWagons(sb, Box);
 
@@ -939,9 +1013,27 @@ public sealed class Train
             new Vector2(coneScale, HasLantern ? 1.35f : 1f), SpriteEffects.None, 0f);
 
         sb.DrawGlow(lamp, HasLantern ? 60f : 40f, HeadlampLight, 0.6f * flicker);
+
+        // Farın kara ve raylara düşen ışığı: lokomotifin önünde uzayan sıcak bir havuz, rayda parlayan çizgi
+        float reach = HasLantern ? 620f : 430f;
+        var pool = new Color(HeadlampLight.R, HeadlampLight.G, HeadlampLight.B, (byte)0);
+        sb.Draw(Assets.Glow, new Rectangle(FrontX - 30, (int)Origin.Y - 16, (int)reach, 70), pool * (0.34f * flicker));
+        sb.Draw(Assets.Glow, new Rectangle(FrontX - 10, (int)Origin.Y - 4, (int)(reach * 0.62f), 26), pool * (0.36f * flicker));
+        sb.Draw(Assets.Glow, new Rectangle(FrontX, (int)Origin.Y - 2, (int)(reach * 0.8f), 5), pool * (0.8f * flicker));
         sb.DrawGlow(new Vector2(Origin.X + 251, Origin.Y - 91), 60f, LanternLight, 0.25f);
         sb.DrawGlow(new Vector2(Origin.X + 95, Origin.Y - 63), 28f, PackageLight, 0.18f * PackagePulse());
         DrawSeasonalGlow(sb);
+
+        // Ocak: kabinin altından kara vuran, kürek attıkça canlanan turuncu kor ışığı
+        float fire = 0.6f + 0.25f * MathF.Sin(_time * 13f) * MathF.Sin(_time * 5.1f) + 0.15f * SpeedRatio;
+        var ember = new Color(255, 120, 40, 0);
+        sb.Draw(Assets.Glow, new Rectangle((int)Origin.X + 205, (int)Origin.Y - 42, 120, 64), ember * (0.42f * fire));
+        sb.Draw(Assets.Glow, new Rectangle((int)Origin.X + 180, (int)Origin.Y - 2, 170, 26), ember * (0.25f * fire));
+        // Pencerelerden kara düşen ışık
+        var spill = new Color(LanternLight.R, LanternLight.G, LanternLight.B, (byte)0);
+        sb.Draw(Assets.Glow, new Rectangle((int)Origin.X + 196, (int)Origin.Y + 2, 110, 22), spill * 0.2f);
+        if (_passengerCount > 0)
+            sb.Draw(Assets.Glow, new Rectangle((int)Origin.X - 10, (int)Origin.Y + 2, 210, 22), spill * (0.07f * Math.Min(3, _passengerCount)));
         if (_passengerCount > 0)
             sb.DrawGlow(new Vector2(Origin.X + 95, Origin.Y - 60), 90f, LanternLight, 0.06f * _passengerCount);
     }
@@ -962,6 +1054,9 @@ public sealed class Train
             sb.Draw(Assets.LightCone, lamp + new Vector2(-6, 0), null, Color.White * (0.95f * flicker), 0f,
                 new Vector2(0, Assets.LightCone.Height / 2f), scale, SpriteEffects.None, 0f);
             DrawMaskGlow(sb, lamp, HasLantern ? 110f : 80f, 0.9f * flicker);
+            // Farın önündeki kar ve ray: karanlıkta yolun kendisi de görünür
+            float reach = HasLantern ? 660f : 470f;
+            sb.Draw(Assets.Glow, new Rectangle(FrontX - 60, (int)Origin.Y - 46, (int)reach, 130), Color.White * (0.5f * flicker));
         }
         else if (MathF.Sin(_time * 37f) * MathF.Sin(_time * 11f) > 0.85f)
         {

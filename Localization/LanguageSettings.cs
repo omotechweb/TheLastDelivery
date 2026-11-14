@@ -10,8 +10,7 @@ namespace TheLastDelivery.Localization;
 /// </summary>
 public static class LanguageSettings
 {
-    private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TheLastDelivery", "language.txt");
+    private static string FilePath => Core.AppPaths.Combine("language.txt");
 
     public static Language LoadOrDefault(Language fallback)
     {

@@ -28,6 +28,7 @@ public static class StringsZh
         ["pause.title"] = "已暂停",
         ["pause.summary"] = "第 {0} 章   路程：{1}/{2} 公里   乘客：{3}/{4}   物品：{5}/{6}",
         ["pause.controls"] = "W/S：速度   E：修理阀门   1：零件   2：煤   3：药品",
+        ["pause.controls2"] = "H：汽笛   F11：全屏   P：拍照模式",
         ["pause.resume"] = "按 ESC 继续",
         ["pause.quit"] = "按 Q 退出",
 

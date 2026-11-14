@@ -64,18 +64,39 @@ public sealed class SnowSystem
         }
     }
 
-    public void Draw(SpriteBatch spriteBatch)
+    /// <param name="lamp">Farın konumu; <paramref name="lampReach"/> 0 ise far sönük.</param>
+    public void Draw(SpriteBatch spriteBatch, Vector2 lamp = default, float lampReach = 0f)
     {
         // Yatay hız arttıkça taneler uzar (hareket bulanıklığı hissi)
         float stretch = _horizontalSpeed / 240f;
+        var warm = new Color(255, 236, 190);
 
         for (int i = 0; i < _activeCount; i++)
         {
             ref Flake f = ref _flakes[i];
-            float alpha = 0.35f + 0.55f * f.Depth;
-            int width = (int)MathF.Max(1f, f.Size * (1f + stretch * f.Depth));
-            var rect = new Rectangle((int)f.Position.X, (int)f.Position.Y, width, (int)f.Size);
-            spriteBatch.Draw(Assets.Pixel, rect, Color.White * alpha);
+            float alpha = 0.3f + 0.55f * f.Depth;
+            var color = Color.White;
+
+            // Far konisine giren taneler ışıkta parlar
+            float dx = f.Position.X - lamp.X, dy = MathF.Abs(f.Position.Y - lamp.Y);
+            if (lampReach > 0f && dx > 0f && dx < lampReach && dy < dx * 0.42f + 4f)
+            {
+                float lit = (1f - dx / lampReach) * (1f - dy / (dx * 0.42f + 4f));
+                color = Color.Lerp(color, warm, 0.7f);
+                alpha = MathF.Min(1f, alpha + 0.9f * lit);
+            }
+
+            if (f.Depth > 0.955f)
+            {
+                // Kameraya en yakın birkaç tane: iri, yumuşak pullar
+                int size = 4 + (int)((f.Depth - 0.955f) * 60f);
+                spriteBatch.Draw(Assets.Circle, new Rectangle((int)f.Position.X, (int)f.Position.Y, size + (int)MathF.Min(6f, stretch * 3f), size), color * (alpha * 0.4f));
+            }
+            else
+            {
+                int width = (int)MathF.Max(1f, f.Size * (1f + stretch * f.Depth));
+                spriteBatch.Draw(Assets.Pixel, new Rectangle((int)f.Position.X, (int)f.Position.Y, width, (int)f.Size), color * alpha);
+            }
         }
     }
 

@@ -176,7 +176,7 @@ public sealed class PhotoMode : IDisposable
     {
         try
         {
-            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TheLastDelivery", "Photos");
+            string folder = Core.AppPaths.Combine("Photos");
             Directory.CreateDirectory(folder);
             string path = Path.Combine(folder, $"photo_{DateTime.Now:yyyyMMdd_HHmmss}.png");
 

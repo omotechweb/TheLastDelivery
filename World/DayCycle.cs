@@ -33,5 +33,8 @@ public sealed class DayCycle
 
     public void Reset() => _clock = GameConfig.DayLength * 0.1f; // Sabah
 
+    /// <summary>Saati günün verilen oranına alır (geliştirici betiği ve sahne kurulumları için).</summary>
+    public void SetPhase(float phase) => _clock = GameConfig.DayLength * phase;
+
     public void Update(float dt) => _clock += dt / GameConfig.DayScale; // HikÃ¢ye hatlarÄ±nda gÃ¼n daha uzun sÃ¼rer
 }

@@ -28,6 +28,7 @@ public static class StringsAr
         ["pause.title"] = "إيقاف مؤقت",
         ["pause.summary"] = "الفصل {0}   المسافة: {1}/{2} كم   الركاب: {3}/{4}   الأغراض: {5}/{6}",
         ["pause.controls"] = "W/S: السرعة   E: الصمام   1: قطع غيار   2: فحم   3: دواء",
+        ["pause.controls2"] = "H: الصافرة   F11: ملء الشاشة   P: وضع التصوير",
         ["pause.resume"] = "اضغط ESC للمتابعة",
         ["pause.quit"] = "اضغط Q للخروج",
 

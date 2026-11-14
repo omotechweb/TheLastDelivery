@@ -120,8 +120,7 @@ public sealed class SaveData
     // Tekil profil ve dosya işlemleri
     // ------------------------------------------------------------------
 
-    private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TheLastDelivery", "save.json");
+    private static string FilePath => Core.AppPaths.Combine("save.json");
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 

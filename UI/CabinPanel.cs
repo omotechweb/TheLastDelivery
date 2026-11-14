@@ -51,7 +51,8 @@ public static class CabinPanel
         // böylece sağa kayan lokomotifin ve far konisinin üstünü örtmez
         bool compact = cabin.Capacity > GameConfig.CabinCapacity;
         const int rowHeight = 56, listOffset = 228;
-        int rows = compact ? (cabin.Capacity + 1) / 2 : cabin.Capacity;
+        int fullRows = compact ? (cabin.Capacity + 1) / 2 : cabin.Capacity;
+        int rows = Math.Min(fullRows, cabin.Count); // Boş yataklar yer kaplamaz: panel yolcu sayısı kadar uzar, manzara açık kalır
         Panel = new Rectangle(PanelX, PanelY, PanelWidth, listOffset + rows * rowHeight + 6);
 
         int left = Panel.X + 16;
@@ -114,9 +115,10 @@ public static class CabinPanel
         for (int i = 0; i < cabin.Capacity; i++)
         {
             // Sütun sütun doldurulur: 1-3 solda (ana vagon), 4-6 sağda (yolcu vagonu)
-            int column = compact ? i / rows : 0;
+            if (i >= cabin.Count && (compact ? i % fullRows : i) >= rows) continue;
+            int column = compact ? i / fullRows : 0;
             int cellX = left + column * (cellWidth + 12);
-            int rowY = listTop + (compact ? i % rows : i) * rowHeight;
+            int rowY = listTop + (compact ? i % fullRows : i) * rowHeight;
             int cellRight = cellX + cellWidth;
 
             if (i >= cabin.Count)
@@ -170,7 +172,7 @@ public static class CabinPanel
         }
 
         // İki sütun arasında ince ayraç (ana vagon | yolcu vagonu)
-        if (compact)
+        if (compact && rows > 0)
             sb.FillRect(new Rectangle(left + cellWidth + 5, listTop, 2, rows * rowHeight - 6), Hud.PanelEdge * 0.4f);
     }
 

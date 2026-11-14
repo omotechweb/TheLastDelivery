@@ -28,6 +28,7 @@ public static class StringsEs
         ["pause.title"] = "EN PAUSA",
         ["pause.summary"] = "CAP. {0}   RUTA: {1}/{2} KM   PASAJEROS: {3}/{4}   OBJETOS: {5}/{6}",
         ["pause.controls"] = "W/S: VELOCIDAD   E: VÁLVULA   1: PIEZAS   2: CARBÓN   3: BOTIQUÍN",
+        ["pause.controls2"] = "H: SILBATO   F11: PANTALLA COMPLETA   P: MODO FOTO",
         ["pause.resume"] = "PULSA ESC PARA CONTINUAR",
         ["pause.quit"] = "PULSA Q PARA SALIR",
 
